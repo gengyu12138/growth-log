@@ -1,0 +1,248 @@
+<template name="entryCard">
+  <view class="entry surface k-{{item.kind}}" style="animation-delay: {{idx < 8 ? idx * 45 : 0}}ms">
+    <view wx:if="{{!compact}}" class="seal seal-{{item.kind}}">{{item.seal}}</view>
+    <view class="entry-body">
+      <text wx:if="{{item.planned}}" class="plan-label">计划 · 尚未发生</text>
+      <text wx:if="{{item.aiLabel}}" class="ai-status" data-id="{{item._id}}" bindtap="onRetryTag">{{item.aiLabel}}</text>
+      <text wx:if="{{item.content}}" class="entry-text">{{item.content}}</text>
+      <view wx:if="{{item.temp || item.meds.length}}" class="vitals">
+        <text wx:if="{{item.temp}}" class="vital-temp">{{item.temp}}℃</text>
+        <text wx:for="{{item.meds}}" wx:for-item="m" wx:key="*this" class="vital-med">{{m}}</text>
+      </view>
+
+      <smart-card card="{{item.card}}" />
+      <text wx:if="{{item.note}}" class="entry-note">{{item.note}}</text>
+      <view wx:if="{{item.images.length}}" class="thumbs">
+        <image
+          wx:for="{{item.images}}"
+          wx:for-item="img"
+          wx:key="*this"
+          class="thumb"
+          src="{{img}}"
+          mode="aspectFill"
+          lazy-load
+          data-src="{{img}}"
+          data-all="{{item.images}}"
+          bindtap="onPreview"
+        />
+      </view>
+      <view wx:if="{{item.tags.length}}" class="tags">
+        <text wx:for="{{item.tags}}" wx:for-item="t" wx:key="*this" class="tag" data-tag="{{t}}" bindtap="onTagTap">{{t}}</text>
+      </view>
+      <text wx:if="{{item.ageLabel}}" class="t-micro">当时 · {{item.ageLabel}}</text>
+      <view wx:if="{{item.recordedLabel}}" class="t-micro">{{item.recordedLabel}} · 发生时刻未注明</view>
+      <view class="entry-meta">
+        <block wx:if="{{!compact && item.fromText}}"><text>{{item.timeLabel}}</text><text class="entry-dot">·</text></block>
+        <text class="entry-author">{{item.author}}</text>
+        <text class="entry-dot">·</text>
+        <text class="entry-kind">{{item.kindLabel}}{{item.favorite ? ' · 已收藏' : ''}}</text>
+        <block wx:if="{{item.place}}">
+          <text class="entry-dot">·</text>
+          <text class="entry-place">{{item.place}}</text>
+        </block>
+      </view>
+    </view>
+    <view wx:if="{{canEdit}}" class="entry-del" data-id="{{item._id}}" bindtap="onEntryMenu">···</view>
+  </view>
+</template>
+
+<backdrop />
+<view class="navbar" style="padding-top:{{statusBar}}px;">
+  <view class="bar" style="height:{{barHeight}}px;">
+    <view class="month-nav">
+      <view class="arrow" bindtap="prevMonth" hover-class="arrow-hover">‹</view>
+      <text class="month">{{monthTitle}}</text>
+      <view class="arrow" bindtap="nextMonth" hover-class="arrow-hover">›</view>
+    </view>
+  </view>
+</view>
+
+<view style="height:{{navTotal}}px;"></view>
+
+<view class="root" style="height: calc(100vh - {{navTotal}}px);">
+<scroll-view class="scroll" scroll-y enhanced show-scrollbar="{{false}}">
+<view class="page">
+
+  <view class="baby-row" bindtap="goMembers">{{babyLabel || '宝宝档案'}}</view>
+  <text wx:if="{{profileError}}" class="t-micro" bindtap="retryProfile">{{profileError}}</text>
+  <view class="family-row">
+    <view class="members-entry" bindtap="goAssistant">智能助手</view>
+    <view class="members-entry" bindtap="goGrowth">成长回顾</view>
+    <view class="members-entry" bindtap="goLibrary">收藏与管理</view>
+    <view class="members-entry" bindtap="goMembers" hover-class="members-entry-hover">家人</view>
+  </view>
+
+  <view class="head-row rise">
+    <text class="stats">{{stats}}</text>
+    <view class="view-switch">
+      <view class="seg {{viewMode === 'calendar' ? 'on' : ''}}" data-mode="calendar" bindtap="onSwitchView">日历</view>
+      <view class="seg {{viewMode === 'timeline' ? 'on' : ''}}" data-mode="timeline" bindtap="onSwitchView">时间轴</view>
+    </view>
+  </view>
+
+  <block wx:if="{{viewMode === 'calendar'}}">
+    <view class="calendar surface-lit {{monthAnim}}">
+      <view class="weekdays">
+        <text class="weekday">一</text>
+        <text class="weekday">二</text>
+        <text class="weekday">三</text>
+        <text class="weekday">四</text>
+        <text class="weekday">五</text>
+        <text class="weekday">六</text>
+        <text class="weekday">日</text>
+      </view>
+
+      <view class="grid">
+        <view
+          wx:for="{{cells}}"
+          wx:key="index"
+          class="cell {{item ? '' : 'blank'}} {{item && item.date === selectedDate ? 'sel' : ''}} {{item && item.date === today ? 'is-today' : ''}}"
+          data-date="{{item ? item.date : ''}}"
+          bindtap="onPickDay"
+        >
+          <view class="cell-inner">
+            <text wx:if="{{item}}" class="cell-day">{{item.day}}</text>
+            <view wx:if="{{item && item.count}}" class="dot"></view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="day-head rise-2">
+      <text class="day-label">{{dayLabel}}</text>
+      <text class="day-count">{{dayCountText}}</text>
+    </view>
+
+    <view wx:if="{{!dayEntries.length && !loading && !loadError}}" class="empty rise-2">
+      <view class="empty-mark"></view>
+      <text class="empty-text">这一天还没有记录</text>
+    </view>
+
+    <view class="entry-list">
+      <block wx:for="{{dayEntries}}" wx:key="_id">
+        <template is="entryCard" data="{{item: item, idx: index, canEdit: canEdit, compact: false}}" />
+      </block>
+    </view>
+  </block>
+
+  <block wx:else>
+    <view wx:if="{{!timeline.length && !loading && !loadError}}" class="empty rise-2">
+      <view class="empty-mark"></view>
+      <text class="empty-text">还没有任何记录</text>
+    </view>
+
+    <view wx:for="{{timeline}}" wx:key="date" wx:for-item="group" class="tl-group">
+      <view class="tl-date">
+        <text class="tl-label">{{group.label}}</text>
+        <text class="tl-count">{{group.entries.length}} 条</text>
+      </view>
+
+      <view class="tl-body">
+        <block wx:for="{{group.entries}}" wx:key="_id" wx:for-item="entry">
+          <view class="tl-item">
+            <text class="tl-time {{entry.fromText ? 'tl-time-strong' : ''}}">{{entry.fromText ? entry.timeLabel : '未注明'}}</text>
+            <view class="tl-rail">
+              <view class="tl-node tl-node-{{entry.kind}}"></view>
+            </view>
+            <view class="tl-card">
+              <template is="entryCard" data="{{item: entry, idx: index, canEdit: canEdit, compact: true}}" />
+            </view>
+          </view>
+        </block>
+      </view>
+    </view>
+  </block>
+
+  <view class="load-status">
+    <text wx:if="{{loading}}">正在读取记录…</text>
+    <block wx:elif="{{loadError}}">
+      <text>{{loadError}}</text>
+      <button class="btn-text" bindtap="onRetry">重试</button>
+    </block>
+    <button wx:elif="{{hasMore}}" class="btn-text" bindtap="onLoadMore">加载更早记录</button>
+  </view>
+  <view class="bottom-space"></view>
+</view>
+</scroll-view>
+
+<view wx:if="{{canEdit || savePending}}" class="composer">
+  <text wx:if="{{savePending}}" class="t-micro">上次保存结果待确认，请重试保存后继续编辑</text>
+  <view class="draft-info">
+    <picker wx:if="{{analysisEvents.length < 2}}" mode="date" value="{{draftDate || selectedDate}}" disabled="{{busy || savePending}}" bindchange="onDraftDate">记录日期：{{draftDate || selectedDate}}</picker>
+    <text wx:if="{{draftStatus && !savePending}}" class="t-micro">{{draftStatus}}</text>
+    <button wx:if="{{(text || images.length) && !savePending}}" class="btn-text" disabled="{{busy}}" bindtap="discardDraft">清除草稿</button>
+  </view>
+  <view wx:if="{{analysisEvents.length < 2}}" class="draft-info">
+    <picker mode="time" value="{{draftAt || '08:00'}}" disabled="{{busy || savePending}}" bindchange="onDraftTime">时间：{{draftAt || '保存时的当前时间'}}{{timeManual ? ' · 手动' : ''}}</picker>
+    <button wx:if="{{draftAt}}" class="btn-text" disabled="{{busy || savePending}}" bindtap="onUseCurrentTime">用当前时间</button>
+    <text>计划</text><switch checked="{{planned}}" disabled="{{busy || savePending}}" bindchange="onPlanned" color="#0e9187" />
+  </view>
+  <view wx:if="{{recognitionStatus && !savePending}}" class="recognition">
+    <text>{{recognitionStatus}}</text><button wx:if="{{!recognizing}}" class="btn-text" disabled="{{busy}}" bindtap="retryRecognition">重新识别</button>
+    <button wx:if="{{assistantIntent}}" class="btn-text" disabled="{{busy}}" bindtap="goAssistant">打开智能助手</button>
+    <text wx:if="{{recognitionWarning}}" class="recognition-warning">{{recognitionWarning}}</text>
+  </view>
+  <view wx:if="{{analysisEvents.length === 1 && analysisEvents[0].card && !savePending}}" class="card-preview">
+    <smart-card card="{{analysisEvents[0].card}}" editable changeable-type disabled="{{busy}}" data-index="0" bind:typechange="onCardType" bind:fieldchange="onCardField" bind:unlink="onCardUnlink" />
+    <button class="btn-text" data-index="0" disabled="{{busy}}" bindtap="onRemoveCard">仅保留原文</button>
+  </view>
+  <text wx:if="{{newTypes.length && !savePending}}" class="t-micro">新类型：{{newTypesLabel}} · 保存时确认，之后自动复用</text>
+  <scroll-view wx:if="{{analysisEvents.length > 1 && !savePending}}" scroll-y class="proposals">
+    <view wx:for="{{analysisEvents}}" wx:key="index" class="proposal">
+      <text>{{index + 1}}. {{item.content}}</text>
+      <smart-card card="{{item.card}}" editable changeable-type disabled="{{busy}}" data-index="{{index}}" bind:typechange="onCardType" bind:fieldchange="onCardField" bind:unlink="onCardUnlink" />
+      <button wx:if="{{item.card}}" class="btn-text" data-index="{{index}}" disabled="{{busy}}" bindtap="onRemoveCard">仅保留原文</button>
+      <view class="draft-info">
+        <picker mode="date" value="{{item.date}}" data-index="{{index}}" data-field="date" disabled="{{busy}}" bindchange="onProposal">{{item.date}}</picker>
+        <picker mode="time" value="{{item.at || '08:00'}}" data-index="{{index}}" data-field="at" disabled="{{busy}}" bindchange="onProposal">{{item.at || '当前时间'}}</picker>
+        <button wx:if="{{item.at}}" size="mini" class="btn-text" data-index="{{index}}" disabled="{{busy}}" bindtap="clearProposalTime">用当前时间</button>
+        <text>计划</text><switch checked="{{item.planned}}" data-index="{{index}}" data-field="planned" disabled="{{busy}}" bindchange="onProposal" color="#0e9187" />
+      </view>
+    </view>
+  </scroll-view>
+  <view class="kinds">
+    <view
+      wx:for="{{kinds}}"
+      wx:key="key"
+      class="kind {{kind === item.key ? 'active' : ''}}"
+      data-kind="{{item.key}}"
+      bindtap="onKind"
+    >{{item.label}}</view>
+  </view>
+
+  <view wx:if="{{images.length}}" class="pending">
+    <view wx:for="{{images}}" wx:key="*this" class="pending-item">
+      <image class="pending-img" src="{{item}}" mode="aspectFill" />
+      <view class="pending-x" data-index="{{index}}" bindtap="onRemoveImage">×</view>
+    </view>
+  </view>
+
+  <text wx:if="{{text.length >= 450}}" class="char-count {{text.length > 500 ? 'recognition-warning' : ''}}">{{text.length}} / 500{{text.length > 500 ? ' · 已保留全部原文，请缩短后保存' : ' · 接近字数上限'}}</text>
+  <view class="composer-row">
+    <textarea
+      class="composer-input"
+      value="{{text}}"
+      disabled="{{busy || savePending}}"
+      bindinput="onText"
+      bindfocus="onKbFocus"
+      bindblur="onKbBlur"
+      adjust-position="{{true}}"
+      bindkeyboardheightchange="onKbHeight"
+      cursor-spacing="24"
+      auto-height
+      maxlength="-1"
+      placeholder="今天她做了什么…"
+      placeholder-class="ph"
+    />
+    <view class="pic-btn" bindtap="onPickImage" hover-class="pic-btn-hover">
+      <text class="pic-btn-text">图</text>
+    </view>
+    <view class="send-btn {{busy || text.length > 500 ? 'off' : ''}}" bindtap="onSave" hover-class="send-btn-hover">{{savePending ? (saveRetrySafe ? '重试保存' : '核对保存') : (analysisEvents.length > 1 ? '确认拆分' : '记下')}}</view>
+  </view>
+</view>
+
+<view class="tabbar">
+  <view class="tab active">记录</view>
+  <view class="tab" bindtap="goSearch">搜索</view>
+</view>
+</view>

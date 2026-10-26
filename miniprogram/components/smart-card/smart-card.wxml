@@ -1,0 +1,17 @@
+<view wx:if="{{card}}" class="smart-card">
+  <view class="head"><input wx:if="{{editable && changeableType}}" class="type" value="{{card.type}}" disabled="{{disabled}}" maxlength="12" bindinput="changeType" /><text wx:else class="type">{{card.type}}</text><text class="source-link" catchtap="toggleEvidence">{{showEvidence ? '收起依据' : '查看识别依据'}}</text></view>
+  <view class="fields">
+    <view wx:for="{{card.fields}}" wx:key="label" class="field">
+      <text class="label">{{item.label}}</text>
+      <view class="value-row">
+        <input wx:if="{{editable && !item.computed}}" value="{{item.value}}" disabled="{{disabled}}" maxlength="60" data-index="{{index}}" bindinput="changeField" />
+        <text wx:else class="value">{{item.value}}</text><text class="unit">{{item.unit}}</text>
+        <text wx:if="{{editable && !item.computed}}" class="remove" data-index="{{index}}" catchtap="removeField">移除</text>
+      </view>
+      <text wx:if="{{item.manual}}" class="hint">手动填写</text>
+      <text wx:if="{{showEvidence}}" class="evidence">{{item.computed ? '按起止时间计算；' : ''}}原文：{{item.evidence || '手动填写，无原文引用'}}</text>
+    </view>
+  </view>
+  <text wx:if="{{card.interval}}" class="hint">{{card.interval.start}} 至 {{card.interval.end}}</text>
+  <view wx:for="{{card.related}}" wx:key="id" class="related"><text class="source-link" data-index="{{index}}" catchtap="openSource">关联原文 · {{item.reason}}</text><text wx:if="{{editable}}" class="remove" data-index="{{index}}" catchtap="removeSource">移除关联</text></view>
+</view>

@@ -1,0 +1,25 @@
+# 系统
+.DS_Store
+
+# 依赖
+node_modules/
+
+# 云函数依赖由云端安装，不入库
+cloudfunctions/*/node_modules/
+
+# ── 以下为本地内部资料，不进开源仓库 ──
+# AI 协作记忆与工作日志（含家庭信息）
+.workbuddy/
+
+# WorkBuddy 应用绑定元数据
+.wbapp_*.genie
+
+# 小程序体验版二维码（扫码可直接进入线上环境）
+preview-qr.png
+
+# 项目内部决策与运维记录（含云环境、部署记录）
+docs/
+AGENTS.md
+
+# 早期 web 版（依赖 WorkBuddy 云服务，含前端可发布密钥）
+web/

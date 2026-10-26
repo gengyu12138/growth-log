@@ -1,0 +1,92 @@
+<backdrop />
+<navbar title="家庭成员" back />
+
+<view class="page">
+  <view class="head">
+    <text class="head-sub">{{members.length}} 人 · 你是{{myRoleLabel}}</text>
+  </view>
+
+  <view class="profile surface">
+    <text class="t-h2">宝宝档案</text>
+    <text class="field-label">昵称</text>
+    <input class="field-input" value="{{nickname}}" maxlength="20" disabled="{{!isOwner || profileBusy || !profileSupported}}" bindinput="onNickname" placeholder="宝宝的小名" />
+    <text class="field-label">生日</text>
+    <picker mode="date" start="1900-01-01" end="{{today}}" value="{{birthday || today}}" disabled="{{!isOwner || profileBusy || !profileSupported}}" bindchange="onBirthday"><view class="profile-date field-input">{{birthday || '请选择生日'}}</view></picker>
+    <text class="t-micro">家人共享查看；管理员设置昵称和生日，月龄将自动显示在记录中。</text>
+    <button wx:if="{{isOwner && profileSupported}}" class="btn btn-primary" disabled="{{profileBusy || busy}}" bindtap="saveProfile">{{profileBusy ? '处理中…' : '保存宝宝档案'}}</button>
+    <text class="msg-error">{{profileError}}</text>
+    <button wx:if="{{profileError}}" class="btn-text" disabled="{{profileBusy}}" bindtap="reloadProfile">重新读取档案</button>
+  </view>
+
+  <view wx:if="{{isOwner}}" class="profile surface">
+    <text class="t-h2">AI 规则</text>
+    <text class="t-micro">编辑记录、卡片、助手和项目维护规则，保存到云端并保留版本。</text>
+    <button class="btn btn-primary" bindtap="openAiSettings">编辑 AI 规则</button>
+  </view>
+
+  <view class="member-list">
+    <view
+      wx:for="{{members}}"
+      wx:key="_id"
+      class="member surface"
+      data-id="{{item._id}}"
+      data-name="{{item.name}}"
+      data-role="{{item.role}}"
+      bindtap="onMemberTap"
+    >
+      <view class="avatar {{item.role === 'owner' ? 'avatar-owner' : ''}}">{{item.initial}}</view>
+      <view class="member-body">
+        <view class="member-line">
+          <text class="member-name">{{item.name}}</text>
+          <text wx:if="{{item.isMe}}" class="member-me">你</text>
+        </view>
+        <text class="member-role">{{item.roleLabel}}</text>
+      </view>
+      <view wx:if="{{isOwner && !item.isMe}}" class="member-more">···</view>
+    </view>
+  </view>
+
+  <view wx:if="{{isOwner}}" class="invite-block">
+    <view class="section-head">
+      <text class="section-title">邀请家人</text>
+      <text class="section-sub">生成一个六位码发给对方，用一次就作废</text>
+    </view>
+
+    <view class="role-picker">
+      <view
+        class="role-option {{inviteRole === 'editor' ? 'active' : ''}}"
+        data-role="editor"
+        bindtap="onPickRole"
+      >
+        <text class="role-option-name">可写</text>
+        <text class="role-option-desc">能记、能删</text>
+      </view>
+      <view
+        class="role-option {{inviteRole === 'viewer' ? 'active' : ''}}"
+        data-role="viewer"
+        bindtap="onPickRole"
+      >
+        <text class="role-option-name">只读</text>
+        <text class="role-option-desc">只能看</text>
+      </view>
+    </view>
+
+    <button
+      class="btn btn-primary"
+      hover-class="btn-primary-hover"
+      disabled="{{busy}}"
+      bindtap="onCreateInvite"
+    >生成邀请码</button>
+  </view>
+
+  <view wx:if="{{invite}}" class="invite-result surface-lit">
+    <text class="t-micro">发给对方，让他打开小程序输入</text>
+    <text class="invite-code" bindtap="onCopy">{{invite.code}}</text>
+    <view class="invite-foot">
+      <text class="t-micro">7 天内有效 · 只能用一次</text>
+      <button class="btn-text" bindtap="onCopy">复制</button>
+    </view>
+  </view>
+
+  <text class="msg-error" bindtap="load">{{msg}}</text>
+</view>

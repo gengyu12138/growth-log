@@ -1,0 +1,14 @@
+.page { padding: 28rpx 28rpx 80rpx; }
+.tabs { display: flex; padding: 8rpx; border-radius: 24rpx; }
+.tab { flex: 1; margin: 0; padding: 18rpx 0; font-size: 26rpx; line-height: 1.5; background: transparent; border-radius: 18rpx; color: var(--ink-2); }
+.tab::after { border: none; }
+.tab.active { background: var(--primary-soft); color: var(--primary); }
+.intro { display: block; font-size: 26rpx; color: var(--ink-2); margin: 22rpx 0; }
+.card { padding: 28rpx; margin: 24rpx 0; overflow-wrap: anywhere; }
+.date { color: var(--primary); font-size: 25rpx; }
+.record-text { display: block; white-space: pre-wrap; margin: 16rpx 0; }
+.images { display: flex; flex-wrap: wrap; gap: 12rpx; margin-bottom: 20rpx; }
+.images image { width: 170rpx; height: 170rpx; border-radius: 16rpx; }
+.export-option { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24rpx; }
+.month { display: flex; align-items: center; }
+.t-micro { display: block; margin-top: 16rpx; }

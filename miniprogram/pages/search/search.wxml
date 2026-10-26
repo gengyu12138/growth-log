@@ -1,0 +1,82 @@
+<backdrop />
+<navbar title="搜索" back />
+
+<view class="page">
+  <view class="search-row">
+    <view class="search-box">
+      <input
+        class="search-input"
+        value="{{q}}"
+        bindinput="onInput"
+        bindconfirm="onConfirm"
+        confirm-type="search"
+        placeholder="搜记录，比如 发烧 / 走路"
+        placeholder-class="ph"
+        focus="{{false}}"
+      />
+    </view>
+  </view>
+
+  <view class="filters surface">
+    <view class="filter-row"><picker mode="date" fields="month" value="{{month}}" bindchange="onMonth"><text>{{month || '选择月份'}}</text></picker><button wx:if="{{month}}" class="btn-text" bindtap="clearMonth">全部月份</button></view>
+    <view class="filter-row"><picker range="{{kinds}}" value="{{kindIndex}}" bindchange="onKind"><text>{{kinds[kindIndex]}} ▾</text></picker><picker range="{{imageOptions}}" value="{{imageIndex}}" bindchange="onImages"><text>{{imageOptions[imageIndex]}} ▾</text></picker></view>
+    <view class="filter-row"><text>只看里程碑收藏</text><switch checked="{{favoriteOnly}}" bindchange="onFavorite" color="#0e9187" /></view>
+  </view>
+
+  <view wx:if="{{loading}}" class="empty">
+    <text class="empty-text">正在读记录…</text>
+  </view>
+
+  <view wx:if="{{loadError}}" class="empty">
+    <text class="empty-text">{{loadError}}</text>
+    <button class="btn-text" bindtap="onRetry">重试</button>
+  </view>
+
+  <view wx:if="{{!loading && !loadError && searched && !results.length && !hasMore}}" class="empty">
+    <text class="empty-text">没找到相关记录</text>
+  </view>
+
+  <view class="result-list">
+    <view
+      wx:for="{{results}}"
+      wx:key="_id"
+      class="result surface"
+      data-date="{{item.happened_on}}"
+      bindtap="onOpen"
+    >
+      <view class="result-head">
+        <text class="result-date">{{item.head}}</text>
+        <text class="result-kind">{{item.planned ? '计划 · ' : ''}}{{item.kindLabel}}</text>
+      </view>
+
+      <text class="result-text">
+        <text
+          wx:for="{{item.parts}}"
+          wx:for-item="p"
+          wx:key="index"
+          class="{{p.hit ? 'hit' : ''}}"
+        >{{p.t}}</text>
+      </text>
+
+      <smart-card card="{{item.card}}" />
+      <view wx:if="{{item.images.length}}" class="thumbs">
+        <image
+          wx:for="{{item.images}}"
+          wx:for-item="img"
+          wx:key="*this"
+          class="thumb"
+          src="{{img}}"
+          mode="aspectFill"
+          lazy-load
+        />
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{hasMore}}" class="load-status">
+    <text>已读取 {{loadedCount}} 条，还有更早的记录未检索</text>
+    <button class="btn-text" disabled="{{loading}}" bindtap="onLoadMore">{{loading ? '正在读取…' : '继续检索更早记录'}}</button>
+  </view>
+
+  <view class="bottom-space"></view>
+</view>

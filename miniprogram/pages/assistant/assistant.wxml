@@ -1,0 +1,88 @@
+<backdrop /><navbar title="智能助手" back />
+<view class="page page-root">
+  <view class="surface card">
+    <text class="t-h2">说说你想看什么、关注什么或纠正什么</text>
+    <text class="intro">例如：这周喝奶和睡觉怎么样；持续关注辅食与反应；刚睡醒；刚才那条改为150毫升；整理学会爬的过程；这周和上周比一比。</text>
+    <textarea class="field-input request" value="{{request}}" maxlength="-1" disabled="{{saving || pending}}" bindinput="onInput" placeholder="描述你的需求，助手自动选择呈现方式" />
+    <text class="t-micro">{{request.length}} / 500 · 修改记录前会展示对照并再次确认</text>
+    <button class="btn btn-primary" disabled="{{busy || saving || pending}}" bindtap="generate">{{busy ? '正在生成…' : '生成 / 重新识别'}}</button>
+  </view>
+  <view wx:if="{{views.length}}" class="surface card">
+    <text class="t-h2">本机保存的看板与追踪</text>
+    <view wx:for="{{views}}" wx:key="index" class="saved-row"><button class="btn-text" data-index="{{index}}" disabled="{{busy || saving || pending}}" bindtap="openView">{{item.title}}</button><button class="btn-text" data-index="{{index}}" disabled="{{busy || saving || pending}}" bindtap="removeView">移除视图</button></view>
+  </view>
+  <text class="msg-error" selectable>{{error}}</text><text class="intro">{{status}}</text>
+  <view wx:if="{{plan}}" class="surface card">
+    <text class="t-h2">{{plan.title}}</text><text class="intro">{{plan.start}} 至 {{plan.end}}</text>
+    <text wx:if="{{plan.warning}}" class="msg-error">{{plan.warning}}</text>
+    <block wx:if="{{plan.intent === 'board' || plan.intent === 'tracker' || plan.intent === 'compare' || plan.intent === 'story'}}">
+      <text class="t-small">纳入规则：类型或原文关键词任一命中；都未指定时为全部已发生记录。</text>
+      <view class="chips"><text wx:for="{{plan.types}}" wx:key="*this" class="chip">类型：{{item}}</text><text wx:for="{{plan.keywords}}" wx:key="*this" class="chip">关键词：{{item}}</text></view>
+      <view wx:if="{{plan.fields.length}}" class="chips"><text class="t-small">关注字段：</text><text wx:for="{{plan.fields}}" wx:key="*this" class="chip">{{item}}</text></view>
+      <text wx:if="{{plan.intent === 'tracker'}}" class="intro">保存后，未来符合这些规则的记录自动纳入；首页识别也会参考关注字段。仅抽取原文已提供的信息。</text>
+      <button wx:if="{{report}}" class="btn-text" disabled="{{busy || saving}}" bindtap="saveView">保存这个{{plan.intent === 'tracker' ? '追踪' : '看板'}}到本机</button>
+    </block>
+    <block wx:if="{{plan.intent === 'clarify' || plan.intent === 'correct' || plan.question}}">
+      <text class="intro">{{plan.question || '请核对候选记录，选择要修改的一条。'}}{{!plan.candidates.length ? ' 可补充日期、时间或原文帮助定位。' : ''}}</text>
+      <textarea class="field-input answer" value="{{answer}}" maxlength="-1" disabled="{{busy || saving || pending}}" bindinput="onAnswer" placeholder="补充信息，例如：是今天下午一点那次" />
+      <button class="btn-text" disabled="{{busy || saving || pending}}" bindtap="generate">根据补充重新生成</button>
+      <view wx:for="{{plan.candidates}}" wx:key="id" class="candidate {{selected === index ? 'selected' : ''}}">
+        <text class="t-h2">候选 {{index + 1}} · {{item.reason}}</text>
+        <text class="field-label">修改前 · {{item.before.date}} {{item.before.at}} · {{item.before.planned ? '计划' : '已发生'}}</text>
+        <text class="record-text">{{item.before.content}}</text><smart-card card="{{item.before.card}}" />
+        <text class="field-label">修改后 · {{item.after.date}} {{item.after.at}} · {{item.after.planned ? '计划' : '已发生'}}</text>
+        <text class="record-text">{{item.after.content}}</text><smart-card card="{{item.after.card}}" />
+        <text wx:if="{{item.before.card && !item.after.card}}" class="msg-error">旧卡片将被清除，避免保留过期统计值。</text>
+        <button class="btn-text" data-id="{{item.id}}" data-revision="{{item.revision}}" bindtap="openSource">核对当前原记录</button>
+        <button wx:if="{{canEdit}}" class="btn-text" data-index="{{index}}" disabled="{{busy || saving || pending}}" bindtap="selectCandidate">{{selected === index ? '已选择这条' : '选择这条'}}</button>
+      </view>
+      <text wx:if="{{!canEdit}}" class="intro">当前为只读成员，可以查看建议，不能修改记录。</text>
+      <text wx:if="{{pending}}" class="msg-error">保存结果待确认，已锁定原提案。可核对原记录或用同一提案重试。</text>
+      <button wx:if="{{canEdit && selected >= 0}}" class="btn btn-primary" disabled="{{busy || saving}}" bindtap="apply">{{saving ? '正在处理…' : pending ? '核对并重试原修改' : '检查完成，确认修改'}}</button>
+    </block>
+  </view>
+  <block wx:if="{{report && !error}}">
+    <view class="surface card">
+      <text class="t-h2">当前 {{report.count}} 条 · {{report.days}} 个记录日</text>
+      <text class="intro">其中 {{report.structured}} 条有结构化卡片。未记录不等于未发生，计划不计入。趋势显示最近30个有数值的日期，不补零。</text>
+      <button class="btn-text" data-index="-1" bindtap="showSources">查看当前全部依据</button>
+      <block wx:if="{{plan.intent === 'compare'}}">
+        <text class="intro">对比 {{plan.previousStart}} 至 {{plan.previousEnd}}：{{report.previousCount}} 条，{{report.previousDays}} 个记录日，{{report.previousStructured}} 条有卡片。记录量与覆盖率不同可能影响比较。</text>
+        <button class="btn-text" data-index="-1" data-previous="{{true}}" bindtap="showSources">查看上一时段依据</button>
+      </block>
+      <text wx:if="{{!report.metrics.length}}" class="intro">暂无匹配的数值字段，可以查看原文记录；不会估算缺失数值。</text>
+    </view>
+    <view wx:for="{{report.metrics}}" wx:key="key" class="surface card">
+      <text class="t-h2">{{item.type}} · {{item.label}}</text>
+      <text class="stat-value">{{item.additive ? '合计' : '最近'}}：{{item.value === null ? '当前缺少数值' : item.value}} {{item.unit}}</text>
+      <text class="t-micro">当前 {{item.count}} 次有数值记录</text>
+      <block wx:if="{{plan.intent === 'compare'}}">
+        <text class="intro">上一时段：{{item.previous === null ? '缺少数值' : item.previous}} {{item.unit}} · {{item.previousCount}} 次</text>
+        <text wx:if="{{item.delta !== null}}" class="stat-value">变化 {{item.delta > 0 ? '+' : ''}}{{item.delta}} {{item.unit}}{{item.percent !== null ? '（' + item.percent + '%）' : '（基数为0，不计算百分比）'}}</text>
+        <text wx:else class="intro">缺少可比较的两期数值，暂不下结论。</text>
+        <button class="btn-text" data-index="{{index}}" data-previous="{{true}}" bindtap="showSources">上一时段数值依据</button>
+      </block>
+      <view wx:for="{{item.trend}}" wx:for-item="point" wx:key="date" class="trend-row"><text>{{point.date}}</text><view class="trend-track"><view class="trend-bar" style="width:{{point.width}}%;"></view></view><text>{{point.value}}</text></view>
+      <button class="btn-text" data-index="{{index}}" bindtap="showSources">查看当前数值依据</button>
+    </view>
+  </block>
+  <block wx:if="{{plan.intent === 'story' && !busy && !error}}">
+    <text class="intro">范围内匹配 {{storyTotal}} 条，模型参考 {{storyConsidered}} 条{{storyTotal > storyConsidered ? '均匀选取的记录，并非完整历史' : '记录'}}。章节标题由模型整理，事实以引用原文为准。</text>
+    <text wx:if="{{!chapters.length}}" class="intro">暂无足够相关片段，可换个主题或补充日期范围。</text>
+    <view wx:for="{{chapters}}" wx:for-item="chapter" wx:key="index" class="surface card">
+      <text class="t-h2">{{chapter.title}}</text>
+      <view wx:for="{{chapter.items}}" wx:key="id" class="memory">
+        <text class="date">{{item.date}} {{item.at}}</text><text class="record-text">{{item.quote}}</text>
+        <view class="images"><image wx:for="{{item.images}}" wx:for-item="src" wx:key="*this" src="{{src}}" mode="aspectFill" lazy-load data-src="{{src}}" data-images="{{item.images}}" bindtap="preview" /></view>
+        <button class="btn-text" data-id="{{item.id}}" data-revision="{{item.revision}}" bindtap="openSource">查看原文</button>
+      </view>
+    </view>
+  </block>
+  <view wx:if="{{sourceTitle}}" class="source-overlay"><view class="surface source-panel">
+    <view class="stat-head"><text class="t-h2">{{sourceTitle}}</text><button class="btn-text" bindtap="closeSources">关闭</button></view>
+    <text class="intro">共 {{sourceTotal}} 条。点原文可核对最新内容。</text>
+    <scroll-view scroll-y class="source-list"><view wx:for="{{sources}}" wx:key="id" class="memory" data-id="{{item.id}}" data-revision="{{item.revision}}" bindtap="openSource">
+      <text class="date">{{item.date}} · {{item.timeLabel}}</text><text class="stat-value">{{item.expression}}{{item.manual ? ' · 手动填写' : ''}}</text><text class="record-text">{{item.content}}</text><text class="t-micro">{{item.evidence}}</text>
+    </view><button wx:if="{{sources.length < sourceTotal}}" class="btn-text" bindtap="moreSources">继续查看</button></scroll-view>
+  </view></view>
+</view>

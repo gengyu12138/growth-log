@@ -1,0 +1,17 @@
+@import '../library/library.wxss';
+.month { margin-top: 24rpx; }
+.memory { padding: 20rpx 0; border-bottom: 1rpx solid var(--line); }
+.field-label { margin-top: 32rpx; }
+.note { height: 360rpx; padding: 22rpx; line-height: 1.65; }
+.btn-primary { margin-top: 24rpx; }
+
+.stat-range { margin: 24rpx 0; }
+.stat-windows, .stat-head { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; }
+.stat-range .field-input { margin-top: 14rpx; }
+.metric { padding: 20rpx 0; border-top: 1rpx solid var(--line); }
+.stat-value { display: block; font-size: 30rpx; color: var(--primary); margin: 10rpx 0; }
+.source-overlay { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; padding: 28rpx; background: rgba(20,40,38,.3); }
+.source-panel { width: 100%; padding: 28rpx; background: #f6fbfa; }
+.source-panel .stat-head .t-h2 { flex: 1; }
+.source-panel .stat-head .btn-text { width: 80rpx; flex-shrink: 0; margin: 0; }
+.source-list { height: 55vh; }

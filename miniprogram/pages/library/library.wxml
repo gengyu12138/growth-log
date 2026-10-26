@@ -1,0 +1,49 @@
+<backdrop />
+<navbar title="收藏与管理" back />
+<view class="page page-root">
+  <view class="tabs surface"><button wx:for="{{tabs}}" wx:key="key" class="tab {{tab === item.key ? 'active' : ''}}" disabled="{{busy}}" data-tab="{{item.key}}" bindtap="onTab">{{item.label}}</button></view>
+  <text wx:if="{{tab === 'favorites'}}" class="intro">家人共同收藏的成长里程碑。在记录右侧菜单中添加或取消收藏。</text>
+  <text wx:elif="{{tab === 'trash'}}" class="intro">可写成员可以恢复记录。历史记录的图片若此前已被清理，恢复后可能无法显示。</text>
+  <text wx:elif="{{tab === 'history'}}" class="intro">从操作记录功能启用后开始记录，不补记历史操作。</text>
+  <view wx:if="{{tab === 'export'}}" class="surface card">
+    <view class="export-option"><text>导出全部记录</text><switch checked="{{exportAll}}" disabled="{{busy}}" bindchange="onExportAll" color="#0e9187" /></view>
+    <picker wx:if="{{!exportAll}}" mode="date" fields="month" value="{{month}}" disabled="{{busy}}" bindchange="onMonth"><view class="field-input month">选择月份：{{month}}</view></picker>
+    <view class="export-option"><text>包含照片文件（ZIP）</text><switch checked="{{withPhotos}}" disabled="{{busy}}" bindchange="onWithPhotos" color="#0e9187" /></view>
+    <view wx:if="{{withPhotos}}">
+      <text class="field-label">可进一步缩小照片备份的记录日期范围</text>
+      <picker mode="date" value="{{photoStart}}" disabled="{{busy}}" bindchange="onPhotoStart"><view class="field-input month">起始：{{photoStart || '不限'}}</view></picker>
+      <picker mode="date" value="{{photoEnd}}" disabled="{{busy}}" bindchange="onPhotoEnd"><view class="field-input month">结束：{{photoEnd || '不限'}}</view></picker>
+      <button class="btn-text" disabled="{{busy}}" bindtap="clearPhotoDates">清除日期范围</button>
+      <text class="intro">照片文件与记录清单一起打包，不再次压缩。历史上传前压缩过的照片无法还原为相机原图。单包最多 80 MB，单张最多 20 MB；超限可缩小日期范围。</text>
+    </view>
+    <text class="intro">{{withPhotos ? 'ZIP 内含照片文件和记录清单。' : 'JSON 包含正文、日期、分类、备注和图片引用，不含照片文件。'}}仅包含未删除记录，导出期间请尽量避免家人修改记录。</text>
+    <button class="btn btn-primary" disabled="{{busy || loading || error}}" bindtap="onExport">{{busy ? '导出中…' : '生成导出文件'}}</button>
+    <text class="intro">{{exportStatus}}</text>
+    <button wx:if="{{busy}}" class="btn-text" bindtap="cancelExport">取消本次备份</button>
+    <button wx:if="{{exportPath}}" class="btn btn-ghost" disabled="{{busy}}" bindtap="shareExport">保存或发送已生成文件</button>
+    <text class="t-micro">文件含家庭记录，请自行选择合适的接收人或文件助手。</text>
+  </view>
+  <block wx:else>
+    <view wx:for="{{rows}}" wx:key="_id" class="surface card">
+      <block wx:if="{{tab === 'history'}}">
+        <text class="record-text">{{item.actor_name}} · {{item.actionLabel}}</text>
+        <text class="intro">操作时间 {{item.timeLabel}}</text>
+        <text class="t-micro">记录日期 {{item.happened_on}} · {{item.entry_id}}</text>
+      </block>
+      <block wx:else>
+        <text class="date">{{item.happened_on}} · {{item.author}}</text>
+        <smart-card card="{{item.card}}" />
+        <text class="record-text" selectable>{{item.planned ? '计划 · ' : ''}}{{item.content}}</text>
+        <text wx:if="{{item.note}}" class="intro">{{item.note}}</text>
+        <view class="images"><image wx:for="{{item.images}}" wx:for-item="src" wx:key="*this" src="{{src}}" mode="aspectFill" lazy-load data-src="{{src}}" data-images="{{item.images}}" bindtap="onPreview" /></view>
+        <button wx:if="{{tab === 'trash' && canEdit}}" class="btn-text" disabled="{{busy}}" data-id="{{item._id}}" bindtap="onRestore">恢复记录</button>
+        <button wx:if="{{tab === 'favorites'}}" class="btn-text" data-date="{{item.happened_on}}" bindtap="onOpen">查看当天记录</button>
+      </block>
+    </view>
+    <text wx:if="{{!rows.length && !loading && !error}}" class="intro">{{tab === 'trash' ? '回收站为空' : tab === 'history' ? '暂无操作记录' : '还没有收藏里程碑'}}</text>
+  </block>
+  <text wx:if="{{loading}}" class="intro">正在读取…</text>
+  <text class="msg-error">{{error}}</text>
+  <button wx:if="{{error && !busy}}" class="btn-text" bindtap="retry">重新读取</button>
+  <button wx:elif="{{hasMore && !loading}}" class="btn-text" bindtap="more">加载更多</button>
+</view>

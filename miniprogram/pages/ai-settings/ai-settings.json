@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "AI 规则",
+  "usingComponents": {
+    "backdrop": "/components/backdrop/backdrop",
+    "navbar": "/components/navbar/navbar"
+  }
+}

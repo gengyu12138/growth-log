@@ -1,0 +1,24 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/join/join",
+    "pages/search/search",
+    "pages/members/members",
+    "pages/edit/edit",
+    "pages/library/library",
+    "pages/growth/growth",
+    "pages/assistant/assistant",
+    "pages/ai-settings/ai-settings"
+  ],
+  "window": {
+    "backgroundColor": "#f7f4ec",
+    "backgroundTextStyle": "dark",
+    "navigationBarBackgroundColor": "#f7f4ec",
+    "navigationBarTitleText": "",
+    "navigationBarTextStyle": "black",
+    "navigationStyle": "custom"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

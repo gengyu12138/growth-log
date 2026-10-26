@@ -1,0 +1,58 @@
+<backdrop /><navbar title="成长回顾" back />
+<view class="page page-root">
+  <view class="tabs surface"><button class="tab {{tab === 'memories' ? 'active' : ''}}" data-tab="memories" bindtap="onTab">成长回忆</button><button class="tab {{tab === 'summary' ? 'active' : ''}}" data-tab="summary" bindtap="onTab">月度小结</button><button class="tab {{tab === 'statistics' ? 'active' : ''}}" data-tab="statistics" bindtap="onTab">数据统计</button></view>
+  <picker wx:if="{{tab === 'summary'}}" mode="date" fields="month" value="{{month}}" bindchange="onMonth"><view class="field-input month">{{month}} · 选择月份</view></picker>
+  <view wx:if="{{tab === 'statistics'}}" class="stat-range">
+    <view class="stat-windows"><button class="btn-text" data-window="today" bindtap="onStatWindow">今天</button><button class="btn-text" data-window="week" bindtap="onStatWindow">近7天</button><button class="btn-text" data-window="month" bindtap="onStatWindow">本月</button></view>
+    <picker mode="date" value="{{statStart}}" data-field="statStart" bindchange="onStatDate"><view class="field-input">开始：{{statStart}}</view></picker>
+    <picker mode="date" value="{{statEnd}}" data-field="statEnd" bindchange="onStatDate"><view class="field-input">结束：{{statEnd}}</view></picker>
+  </view>
+  <text wx:if="{{loading}}" class="intro">正在读取完整记录…</text>
+  <text class="msg-error">{{error}}</text><button wx:if="{{error}}" class="btn-text" bindtap="load">重试</button>
+  <block wx:if="{{!loading && !error && tab === 'statistics' && statistics}}">
+    <text class="intro">已发生记录 {{statistics.total}} 条，其中 {{statistics.structured}} 条有结构化卡片。计划不计入；未结构化记录不估算数值，以下不代表全天完整摄入或作息。</text>
+    <text wx:if="{{!statistics.groups.length}}" class="intro">这个范围还没有可统计的卡片。新记录识别后会在这里汇总，旧记录不会被自动改写。</text>
+    <view wx:for="{{statistics.groups}}" wx:for-item="group" wx:for-index="gi" wx:key="type" class="surface card">
+      <view class="stat-head"><text class="t-h2">{{group.type}} · {{group.count}} 条</text><button class="btn-text" data-group="{{gi}}" bindtap="showSources">条数依据</button></view>
+      <view wx:for="{{group.metrics}}" wx:for-item="metric" wx:for-index="mi" wx:key="index" class="metric">
+        <text>{{metric.label}} · {{metric.count}} 次有数值记录</text>
+        <text wx:if="{{metric.additive}}" class="stat-value">合计 {{metric.total}} {{metric.unit}}</text>
+        <text wx:else class="stat-value">最近 {{metric.latest}} {{metric.unit}}</text>
+        <text class="t-micro">平均 {{metric.average}} · 最小 {{metric.min}} · 最大 {{metric.max}} {{metric.unit}}</text>
+        <button class="btn-text" data-group="{{gi}}" data-metric="{{mi}}" bindtap="showSources">查看数值与原文依据</button>
+      </view>
+    </view>
+  </block>
+  <block wx:if="{{!loading && !error && tab === 'memories'}}">
+    <view wx:for="{{groups}}" wx:key="date" class="surface card">
+      <text class="t-h2">{{item.label}} · {{item.date}}</text>
+      <view wx:for="{{item.entries}}" wx:for-item="entry" wx:key="_id" class="memory" data-date="{{entry.happened_on}}" bindtap="onOpen"><text class="record-text">{{entry.content || '照片记录'}}</text><text class="t-micro">{{entry.images.length || 0}} 张照片 · 查看当天</text></view>
+    </view>
+    <view wx:if="{{milestones.length}}" class="surface card"><text class="t-h2">近期收藏的成长时刻</text><view wx:for="{{milestones}}" wx:key="_id" class="memory" data-date="{{item.happened_on}}" bindtap="onOpen"><text class="date">{{item.happened_on}}</text><text class="record-text">{{item.content || '照片记录'}}</text></view></view>
+    <text wx:if="{{!groups.length && !milestones.length}}" class="intro">这几个回忆日期还没有记录，继续积累就会在这里遇见过去。</text>
+    <button class="btn-text" bindtap="goFavorites">查看全部里程碑收藏</button>
+  </block>
+  <view wx:if="{{!loading && !error && tab === 'summary' && summary}}" class="surface card">
+    <text class="t-h2">{{month}} · {{summary.count}} 条记录</text>
+    <text class="intro">记录 {{summary.days}} 天 · 第一次 {{summary.firstCount}} 条 · 收藏 {{summary.favoriteCount}} 条 · 照片 {{summary.photoCount}} 张</text>
+    <text wx:if="{{!summary.count}}" class="intro">这个月还没有记录。</text>
+    <view wx:for="{{summary.highlights}}" wx:key="_id" class="memory" data-date="{{item.happened_on}}" bindtap="onOpen"><text class="date">{{item.happened_on}}</text><text class="record-text">{{item.content || '照片记录'}}</text></view>
+    <view class="images"><image wx:for="{{summary.photos}}" wx:key="*this" src="{{item}}" mode="aspectFill" lazy-load data-src="{{item}}" bindtap="onPreview" /></view>
+    <text wx:if="{{summary.photoCount > 12}}" class="t-micro">展示前 12 张照片，其余可在本月记录中查看。</text>
+    <button class="btn-text" bindtap="goMonth">查看本月全部记录</button>
+    <block wx:if="{{summary.count}}"><text class="field-label">月记草稿 · 最多 500 字</text><textarea class="field-input note" value="{{note}}" maxlength="500" disabled="{{!canEdit}}" bindinput="onNote" /><text class="t-micro">{{noteStatus}}</text><button wx:if="{{canEdit}}" class="btn btn-primary" bindtap="toDraft">带到首页草稿</button><text class="t-micro">带入后仍需点击“记下”才会保存为新记录。</text></block>
+  </view>
+  <view wx:if="{{sourceTitle}}" class="source-overlay">
+    <view class="surface source-panel">
+      <view class="stat-head"><text class="t-h2">{{sourceTitle}}</text><button class="btn-text" bindtap="closeSources">关闭</button></view>
+      <text class="intro">数据来自 {{sourceTotal}} 条记录；同类单位由程序换算，未混合不同单位。点原文可核对最新记录。</text>
+      <scroll-view scroll-y class="source-list">
+        <view wx:for="{{sources}}" wx:key="id" class="memory" data-index="{{index}}" bindtap="openSource">
+          <text class="date">{{item.date}} · {{item.timeLabel}}</text><text wx:if="{{item.expression}}" class="stat-value">{{item.expression}}{{item.manual ? ' · 手动填写' : ''}}</text>
+          <text class="record-text">{{item.content}}</text><text wx:if="{{item.evidence}}" class="t-micro">引用：{{item.evidence}}</text>
+        </view>
+        <button wx:if="{{sources.length < sourceTotal}}" class="btn-text" bindtap="moreSources">继续查看（{{sources.length}}/{{sourceTotal}}）</button>
+      </scroll-view>
+    </view>
+  </view>
+</view>

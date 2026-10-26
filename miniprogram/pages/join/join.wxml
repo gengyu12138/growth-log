@@ -1,0 +1,57 @@
+<backdrop dense />
+<navbar />
+
+<view class="landing">
+  <view class="brand">
+    <view class="brand-rule"></view>
+    <text class="brand-title rise">成长记录</text>
+    <text class="brand-sub rise-2">记下她长大的每一天</text>
+  </view>
+
+  <view class="invite-card surface-lit rise-3">
+    <view class="card-head">
+      <text class="card-title">你还没有被邀请加入</text>
+      <text class="card-sub">找家里的管理员要一个六位邀请码</text>
+    </view>
+
+    <view class="field">
+      <text class="field-label">加入填邀请码 · 创建填家庭码</text>
+      <input
+        class="field-input code-input"
+        value="{{code}}"
+        bindinput="onCode"
+        maxlength="12"
+        placeholder="4–12 位字母或数字"
+        placeholder-class="ph"
+        confirm-type="done"
+        bindconfirm="onJoin"
+      />
+    </view>
+
+    <view class="field">
+      <text class="field-label">你的称呼</text>
+      <input
+        class="field-input"
+        value="{{name}}"
+        bindinput="onName"
+        maxlength="12"
+        placeholder="选填，如 奶奶"
+        placeholder-class="ph"
+      />
+    </view>
+
+    <button
+      class="btn btn-primary submit"
+      hover-class="btn-primary-hover"
+      disabled="{{busy}}"
+      bindtap="onJoin"
+    >{{busy ? '正在进入…' : '进入'}}</button>
+
+    <text class="msg-error">{{msg}}</text>
+  </view>
+
+  <view class="footer">
+    <text class="footer-hint">第一次使用？上面填个家庭码，再点</text>
+    <button class="btn-text" bindtap="onCreate">创建家庭</button>
+  </view>
+</view>

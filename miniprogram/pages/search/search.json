@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "搜索",
+  "usingComponents": {
+    "backdrop": "/components/backdrop/backdrop",
+    "navbar": "/components/navbar/navbar",
+    "smart-card": "/components/smart-card/smart-card"
+  },
+  "navigationStyle": "custom"
+}

@@ -1,0 +1,28 @@
+<backdrop />
+<navbar title="AI 规则" back custom-back bind:back="onBack" />
+<view class="page">
+  <view class="surface rule-intro">
+    <text class="t-h2">让 AI 按你的习惯整理</text>
+    <text class="description">仅家庭管理员可编辑。保存后，业务 AI 的下一次请求使用新规则；开发维护 Agent 在下一次进入项目时读取。已保存记录不会自动改写。</text>
+    <text class="t-micro">这些是可编辑的偏好与维护要求。事实来源、输出结构、权限和修改确认仍由固定规则约束。请勿填写密钥或私人记录。</text>
+  </view>
+  <text wx:if="{{busy}}" class="status">处理中…</text>
+  <text wx:if="{{error}}" class="msg-error">{{error}}</text>
+  <view wx:if="{{ready}}" class="surface rule-editor">
+    <text class="t-micro">当前版本 {{revision}} · {{updated}}</text>
+    <picker range="{{fields}}" range-key="title" value="{{selected}}" bindchange="selectField">
+      <view class="field-input rule-picker">{{fields[selected].title}} ▾</view>
+    </picker>
+    <text class="description">{{fields[selected].hint}}</text>
+    <textarea class="rule-text" value="{{text}}" maxlength="{{limit}}" disabled="{{busy || pending}}" bindinput="onInput" placeholder="填写希望 AI 遵循的规则；留空表示无额外偏好" />
+    <view class="editor-foot"><text class="t-micro">{{text.length}} / {{limit}} · {{dirty ? '有未保存修改' : '已与云端一致'}}</text>
+      <button class="btn-text" disabled="{{busy || pending}}" bindtap="resetField">载入本项默认</button></view>
+    <button class="btn btn-primary" disabled="{{busy || conflict || (!dirty && !pending)}}" bindtap="save">{{pending ? '核对并重试保存' : '保存全部规则到云端'}}</button>
+  </view>
+  <button class="btn-text reload" disabled="{{busy}}" bindtap="reload">重新读取云端</button>
+  <view wx:if="{{ready && history.length}}" class="surface rule-history">
+    <text class="t-h2">最近 10 个历史版本</text>
+    <text class="description">载入后先检查全部规则，再保存为新版本。</text>
+    <button wx:for="{{history}}" wx:key="revision" class="btn-text version" data-revision="{{item.revision}}" disabled="{{busy || pending}}" bindtap="restoreVersion">载入版本 {{item.revision}}{{item.revision === 0 ? '（初始默认）' : ''}}</button>
+  </view>
+</view>

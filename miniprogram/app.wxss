@@ -1,0 +1,338 @@
+/* ── 设计令牌 ─────────────────────────────────────────
+   毛玻璃：浅灰蓝画布 + 漂移光斑（见 components/backdrop）
+   卡片是真实的半透明白玻璃，模糊 + 高光边 + 内描边
+   文字用 iOS 三级灰，主色是一枚柔和的玫瑰红
+   ──────────────────────────────────────────────────── */
+
+page {
+  --ink: #1c1c1e;
+  --ink-2: #6e6e73;
+  --ink-3: #86868b;
+
+  --glass: rgba(255, 255, 255, 0.58);
+  --glass-soft: rgba(255, 255, 255, 0.42);
+  --glass-strong: rgba(255, 255, 255, 0.82);
+  --glass-line: rgba(255, 255, 255, 0.72);
+  --glass-line-2: rgba(255, 255, 255, 0.45);
+
+  --primary: #0e9187;
+  --primary-dim: #0b8078;
+  --primary-soft: rgba(14, 145, 135, 0.12);
+  --primary-line: rgba(14, 145, 135, 0.36);
+
+  --amber: #b07a3c;
+  --amber-soft: rgba(176, 122, 60, 0.13);
+
+  --r-sm: 16rpx;
+  --r-md: 24rpx;
+  --r-lg: 34rpx;
+
+  /* 页面样式沿用旧变量名，统一映射到毛玻璃这套 */
+  --paper: #eef5f5;
+  --card: rgba(255, 255, 255, 0.55);
+  --card-2: rgba(255, 255, 255, 0.45);
+  --card-3: rgba(255, 255, 255, 0.34);
+  --line: rgba(255, 255, 255, 0.52);
+  --line-2: rgba(255, 255, 255, 0.6);
+  --cinnabar: var(--primary);
+  --cinnabar-dim: var(--primary-dim);
+  --cinnabar-soft: var(--primary-soft);
+
+  background: #eef5f5;
+  color: var(--ink);
+  font-family: -apple-system, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+  font-size: 30rpx;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+view, text, input, textarea, image, scroll-view, button {
+  box-sizing: border-box;
+}
+
+.hidden { display: none !important; }
+
+.muted { color: var(--ink-2); }
+
+/* 页面内容要压在背景层之上 */
+.page-root {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── 排版 ─────────────────────────────────────────── */
+
+.t-display {
+  font-size: 54rpx;
+  font-weight: 600;
+  line-height: 1.22;
+  letter-spacing: 2rpx;
+}
+
+.t-h2 {
+  font-size: 31rpx;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.t-small {
+  font-size: 26rpx;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.t-micro {
+  font-size: 22rpx;
+  line-height: 1.45;
+  color: var(--ink-3);
+}
+
+/* ── 玻璃 ───────────────────────────────────────────
+   三层阴影缺一不可，这是"看起来像玻璃"的判据：
+     ① 顶边高光 inset，光从左上打过来
+     ② 直接阴影：紧贴、短、略深
+     ③ 环境阴影：散开、宽、很浅
+   模糊只给"外壳"层（日历、输入条、底栏、落地页卡片），
+   内容列表用半透明实色，同屏真模糊不超过 2 处。
+   ──────────────────────────────────────────────────── */
+
+/* 内容卡片：半透明实色，不做实时模糊 */
+.surface {
+  background: rgba(255, 255, 255, 0.74);
+  border: 1rpx solid rgba(255, 255, 255, 0.82);
+  border-radius: var(--r-lg);
+  box-shadow:
+    0 1rpx 2rpx rgba(31, 41, 55, 0.055),
+    0 10rpx 30rpx rgba(31, 41, 55, 0.07),
+    inset 0 1rpx 0 rgba(255, 255, 255, 0.92);
+}
+
+/* 外壳玻璃：真模糊。只给数量可控的大面用 */
+.surface-lit {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(18px) saturate(170%);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+  border: 1rpx solid rgba(255, 255, 255, 0.78);
+  border-radius: var(--r-lg);
+  box-shadow:
+    0 1rpx 2rpx rgba(31, 41, 55, 0.05),
+    0 16rpx 52rpx rgba(31, 41, 55, 0.1),
+    inset 0 1rpx 0 rgba(255, 255, 255, 0.96);
+}
+
+/* 不支持实时模糊时退回不透明，不能塌成透明色块 */
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .surface-lit {
+    background: rgba(255, 255, 255, 0.94);
+  }
+}
+
+.surface-soft {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1rpx solid rgba(255, 255, 255, 0.62);
+  border-radius: var(--r-md);
+  box-shadow: inset 0 1rpx 0 rgba(255, 255, 255, 0.8);
+}
+
+/* ── 按钮 ─────────────────────────────────────────── */
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 94rpx;
+  padding: 0 34rpx;
+  border: none;
+  border-radius: var(--r-md);
+  font-size: 30rpx;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+  line-height: 1;
+  margin: 0;
+  transition: background-color 160ms ease, transform 160ms ease, opacity 160ms ease, box-shadow 160ms ease;
+}
+
+.btn::after { border: none; }
+
+.btn-primary {
+  background: linear-gradient(180deg, #17a89d 0%, #0b8078 100%);
+  color: #ffffff;
+  box-shadow: 0 10rpx 26rpx rgba(14, 145, 135, 0.3);
+}
+
+.btn-primary-hover {
+  background: linear-gradient(180deg, #0f9a90 0%, #076e67 100%);
+  transform: translateY(1rpx) scale(0.995);
+  box-shadow: 0 6rpx 16rpx rgba(14, 145, 135, 0.24);
+}
+
+.btn-ghost {
+  background: var(--glass-soft);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  color: var(--ink-2);
+  border: 1rpx solid var(--glass-line);
+  font-weight: 500;
+}
+
+.btn-ghost-hover {
+  background: var(--glass);
+}
+
+.btn-text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  height: auto;
+  background: transparent;
+  border: none;
+  font-size: 26rpx;
+  font-weight: 500;
+  color: var(--primary);
+  line-height: 1.4;
+}
+
+.btn-text::after { border: none; }
+
+.btn[disabled] { opacity: 0.42; }
+
+/* ── 输入 ─────────────────────────────────────────── */
+
+.field-label {
+  display: block;
+  font-size: 23rpx;
+  font-weight: 500;
+  color: var(--ink-3);
+  letter-spacing: 1rpx;
+  margin-bottom: 14rpx;
+}
+
+.field-input {
+  width: 100%;
+  height: 94rpx;
+  padding: 0 26rpx;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1rpx solid var(--glass-line);
+  border-radius: var(--r-md);
+  color: var(--ink);
+  font-size: 30rpx;
+  transition: border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+}
+
+.ph {
+  color: #a1a1a6;
+}
+
+/* ── 反馈 ─────────────────────────────────────────── */
+
+.msg-error {
+  display: block;
+  min-height: 36rpx;
+  font-size: 24rpx;
+  color: #d70015;
+  line-height: 1.45;
+  margin-top: 16rpx;
+}
+
+.divider {
+  height: 1rpx;
+  background: var(--glass-line-2);
+  margin: 40rpx 0;
+}
+
+/* ── 入场动效 ─────────────────────────────────────── */
+
+@keyframes glass-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14rpx) scale(0.988);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.rise {
+  animation: glass-rise 380ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.rise-2 {
+  animation: glass-rise 380ms cubic-bezier(0.22, 0.61, 0.36, 1) 80ms both;
+}
+
+.rise-3 {
+  animation: glass-rise 380ms cubic-bezier(0.22, 0.61, 0.36, 1) 160ms both;
+}
+
+/* 月份翻页：整块侧向滑入 */
+@keyframes flip-left {
+  from {
+    opacity: 0;
+    transform: translateX(36rpx) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes flip-right {
+  from {
+    opacity: 0;
+    transform: translateX(-36rpx) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.flip-left {
+  animation: flip-left 340ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.flip-right {
+  animation: flip-right 340ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+/* 选中日：按下再回弹 */
+@keyframes seal-pop {
+  0% {
+    transform: scale(0.8);
+  }
+  58% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* 记录条目：掀起一角落定 */
+@keyframes entry-in {
+  from {
+    opacity: 0;
+    transform: translateY(20rpx) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 呼吸 */
+@keyframes breathe {
+  0%, 100% {
+    opacity: 0.32;
+    transform: scale(0.94);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.06);
+  }
+}

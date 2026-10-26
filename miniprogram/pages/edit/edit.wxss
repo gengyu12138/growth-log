@@ -1,0 +1,9 @@
+.page { padding: 32rpx 30rpx 80rpx; }
+.form { padding: 30rpx; }
+.field-label { margin-top: 24rpx; }
+.picker { display: flex; align-items: center; }
+.body { height: 300rpx; padding: 24rpx; }
+.note { height: 180rpx; padding: 24rpx; }
+.images { display: flex; flex-wrap: wrap; gap: 14rpx; margin: 24rpx 0; }
+.images image { width: 160rpx; height: 160rpx; border-radius: 16rpx; }
+.btn-primary { margin-top: 32rpx; }

@@ -1,0 +1,13 @@
+<view class="navbar" style="padding-top:{{statusBar}}px;">
+  <view class="bar" style="height:{{barHeight}}px;">
+    <view wx:if="{{back}}" class="back" bindtap="onBack" hover-class="back-hover">
+      <text class="back-icon">‹</text>
+    </view>
+    <view class="center">
+      <text wx:if="{{title}}" class="title">{{title}}</text>
+      <slot wx:else></slot>
+    </view>
+  </view>
+</view>
+
+<view style="height:{{total}}px;"></view>

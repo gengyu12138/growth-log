@@ -1,0 +1,60 @@
+/* 自定义导航：不是一条实色条，而是一层从页面底色渐隐的遮罩，
+   背景的光斑和粒子会从下缘透出来，所以看不到任何硬边 */
+.navbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 20;
+  background: linear-gradient(
+    180deg,
+    rgba(233, 245, 245, 0.94) 0%,
+    rgba(233, 245, 245, 0.82) 58%,
+    rgba(233, 245, 245, 0.42) 84%,
+    rgba(233, 245, 245, 0) 100%
+  );
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  padding: 0 24rpx;
+}
+
+.back {
+  width: 60rpx;
+  height: 60rpx;
+  flex: none;
+  margin-right: 8rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.55);
+  transition: background-color 150ms ease;
+}
+
+.back-hover {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.back-icon {
+  font-size: 36rpx;
+  line-height: 1;
+  color: var(--ink);
+  margin-top: -4rpx;
+}
+
+.center {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.title {
+  font-size: 32rpx;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+  color: var(--ink);
+}

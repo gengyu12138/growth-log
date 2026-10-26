@@ -1,0 +1,122 @@
+.landing {
+  position: relative;
+  z-index: 1;
+  min-height: calc(100vh - 200rpx);
+  padding: 56rpx 48rpx calc(56rpx + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── 品牌区 ── */
+.brand {
+  margin-bottom: 76rpx;
+}
+
+/* 一枚朱砂短印，代替图形 logo。像落笔一样从左侧拉出去 */
+.brand-rule {
+  width: 52rpx;
+  height: 8rpx;
+  background: var(--cinnabar);
+  border-radius: 2rpx;
+  margin-bottom: 36rpx;
+  animation: rule-draw 620ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@keyframes rule-draw {
+  from {
+    opacity: 0;
+    transform: scaleX(0);
+    transform-origin: left center;
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+    transform-origin: left center;
+  }
+}
+
+.brand-title {
+  display: block;
+  font-size: 60rpx;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 8rpx;
+  color: var(--ink);
+}
+
+.brand-sub {
+  display: block;
+  margin-top: 20rpx;
+  font-size: 26rpx;
+  color: var(--ink-3);
+  letter-spacing: 2rpx;
+}
+
+/* ── 邀请卡 ── */
+/* 比通用玻璃更透一点，让背后的浮尘透出来 */
+.invite-card {
+  padding: 44rpx 36rpx 36rpx;
+  background: rgba(255, 255, 255, 0.54);
+  backdrop-filter: blur(16px) saturate(1.6);
+  -webkit-backdrop-filter: blur(16px) saturate(1.6);
+}
+
+.card-head {
+  margin-bottom: 44rpx;
+}
+
+.card-title {
+  display: block;
+  font-size: 33rpx;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ink);
+  letter-spacing: 1rpx;
+}
+
+.card-sub {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 25rpx;
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+
+.field {
+  margin-bottom: 28rpx;
+}
+
+.code-input {
+  height: 116rpx;
+  text-align: center;
+  font-size: 42rpx;
+  font-weight: 600;
+  letter-spacing: 12rpx;
+  color: var(--cinnabar);
+  background: var(--cinnabar-soft);
+  border-color: var(--primary-line);
+}
+
+.submit {
+  margin-top: 14rpx;
+}
+
+/* ── 底部 ── */
+.footer {
+  margin-top: auto;
+  padding-top: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.footer-hint {
+  font-size: 25rpx;
+  color: var(--ink-3);
+}
+
+.footer .btn-text {
+  margin-left: 6rpx;
+  font-size: 25rpx;
+}

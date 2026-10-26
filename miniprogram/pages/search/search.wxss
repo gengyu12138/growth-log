@@ -1,0 +1,123 @@
+.page {
+  position: relative;
+  z-index: 1;
+  padding: 0 28rpx;
+}
+
+.search-row {
+  display: flex;
+  align-items: center;
+  padding: 8rpx 0 28rpx;
+}
+
+.back {
+  width: 56rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+  color: var(--ink-3);
+  margin-right: 8rpx;
+}
+
+.search-box {
+  flex: 1;
+  min-width: 0;
+}
+
+.search-input {
+  height: 84rpx;
+  padding: 0 30rpx;
+  background: var(--card);
+  border: 1rpx solid var(--line-2);
+  border-radius: 999rpx;
+  color: var(--ink);
+  font-size: 29rpx;
+}
+
+.result-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.load-status {
+  padding: 24rpx 0;
+  text-align: center;
+  color: var(--ink-3);
+  font-size: 24rpx;
+}
+
+.result {
+  padding: 26rpx 26rpx 24rpx;
+  margin-bottom: 16rpx;
+}
+
+.result-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
+}
+
+.result-date {
+  font-size: 22rpx;
+  color: var(--ink-3);
+  letter-spacing: 0.8rpx;
+}
+
+.result-kind {
+  font-size: 20rpx;
+  color: var(--cinnabar);
+  background: var(--cinnabar-soft);
+  border-radius: 999rpx;
+  padding: 2rpx 16rpx;
+}
+
+.result-text {
+  font-size: 28rpx;
+  line-height: 1.6;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+.result-text .hit {
+  color: var(--cinnabar);
+  font-weight: 600;
+  background: var(--cinnabar-soft);
+  border-radius: 4rpx;
+}
+
+.thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 16rpx;
+}
+
+.thumb {
+  width: 124rpx;
+  height: 124rpx;
+  border-radius: var(--r-sm);
+  background: var(--card-3);
+  margin: 0 10rpx 10rpx 0;
+}
+
+.empty {
+  padding: 110rpx 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-text {
+  font-size: 25rpx;
+  color: var(--ink-3);
+  letter-spacing: 1rpx;
+}
+
+.bottom-space {
+  height: 60rpx;
+}
+
+.filters { padding: 16rpx 24rpx; margin: 24rpx 0; font-size: 26rpx; }
+.filter-row { display: flex; justify-content: space-between; align-items: center; padding: 12rpx 0; gap: 20rpx; }

@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "编辑记录",
+  "usingComponents": {
+    "backdrop": "/components/backdrop/backdrop",
+    "navbar": "/components/navbar/navbar",
+    "smart-card": "/components/smart-card/smart-card"
+  }
+}

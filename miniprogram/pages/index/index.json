@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "成长记录",
+  "enablePullDownRefresh": false,
+  "usingComponents": {
+    "backdrop": "/components/backdrop/backdrop",
+    "smart-card": "/components/smart-card/smart-card"
+  },
+  "navigationStyle": "custom"
+}

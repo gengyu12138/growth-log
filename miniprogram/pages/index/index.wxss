@@ -1,0 +1,765 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.scroll {
+  flex: 1;
+  height: 0;
+}
+
+.page {
+  padding: 0 28rpx;
+}
+
+/* ── 自定义导航 ── */
+.navbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 20;
+  background: linear-gradient(
+    180deg,
+    rgba(233, 245, 245, 0.94) 0%,
+    rgba(233, 245, 245, 0.82) 58%,
+    rgba(233, 245, 245, 0.42) 84%,
+    rgba(233, 245, 245, 0) 100%
+  );
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24rpx;
+}
+
+.month-nav {
+  display: flex;
+  align-items: center;
+}
+
+.arrow {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 38rpx;
+  color: var(--ink-3);
+  border-radius: var(--r-sm);
+  transition: background-color 150ms ease;
+}
+
+.arrow-hover {
+  background: var(--card-3);
+}
+
+.month {
+  font-size: 32rpx;
+  font-weight: 600;
+  letter-spacing: 3rpx;
+  color: var(--ink);
+}
+
+.members-entry {
+  font-size: 23rpx;
+  color: var(--ink-2);
+  padding: 10rpx 22rpx;
+  border: 1rpx solid var(--line-2);
+  border-radius: 999rpx;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.members-entry-hover {
+  background: var(--card-3);
+  border-color: var(--line-2);
+}
+
+.family-row {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4rpx 0 14rpx;
+}
+
+.load-status {
+  padding: 24rpx 0;
+  text-align: center;
+  color: var(--ink-3);
+  font-size: 24rpx;
+}
+
+.head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4rpx 4rpx 18rpx;
+}
+
+.stats {
+  font-size: 22rpx;
+  color: var(--ink-3);
+  letter-spacing: 1.2rpx;
+}
+
+/* 日历 / 时间轴 切换 */
+.view-switch {
+  display: flex;
+  padding: 4rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.52);
+  border: 1rpx solid rgba(255, 255, 255, 0.72);
+}
+
+.seg {
+  padding: 8rpx 24rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  color: var(--ink-3);
+  letter-spacing: 1rpx;
+  transition: background-color 190ms ease, color 190ms ease;
+}
+
+.seg.on {
+  background: var(--primary);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* ── 月历 ── */
+.calendar {
+  padding: 20rpx 14rpx 24rpx;
+}
+
+.weekdays,
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.weekday {
+  width: 14.28%;
+  text-align: center;
+  font-size: 21rpx;
+  color: var(--ink-3);
+  letter-spacing: 1rpx;
+  padding: 4rpx 0 12rpx;
+}
+
+.cell {
+  width: 14.28%;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cell.blank {
+  visibility: hidden;
+}
+
+.cell-inner {
+  position: relative;
+  width: 62rpx;
+  height: 62rpx;
+  border-radius: 14rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 180ms ease;
+}
+
+.cell-day {
+  font-size: 27rpx;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.dot {
+  width: 6rpx;
+  height: 6rpx;
+  border-radius: 50%;
+  background: var(--cinnabar);
+  margin-top: 7rpx;
+}
+
+/* 今天：一圈会呼吸的朱砂细线 */
+.cell.is-today .cell-inner::after {
+  content: '';
+  position: absolute;
+  left: -2rpx;
+  top: -2rpx;
+  right: -2rpx;
+  bottom: -2rpx;
+  border: 1rpx solid var(--cinnabar);
+  border-radius: 16rpx;
+  animation: breathe 3s ease-in-out infinite;
+}
+
+.cell.sel .cell-inner {
+  background: var(--cinnabar);
+  animation: seal-pop 300ms cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.cell.sel .cell-inner::after {
+  display: none;
+}
+
+.cell.sel .cell-day {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.cell.sel .dot {
+  background: #ffffff;
+}
+
+/* ── 当天 ── */
+.day-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 34rpx 4rpx 18rpx;
+}
+
+.day-label {
+  font-size: 27rpx;
+  font-weight: 600;
+  letter-spacing: 1.2rpx;
+  color: var(--ink);
+}
+
+.day-count {
+  font-size: 22rpx;
+  color: var(--ink-3);
+}
+
+/* ── 记录 ── */
+.entry-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.entry {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  padding: 26rpx 24rpx 24rpx;
+  margin-bottom: 16rpx;
+  animation: entry-in 320ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+/* 类别印：像盖在纸上的小方章，微微歪一点才像手盖的 */
+.seal {
+  flex: none;
+  width: 58rpx;
+  height: 58rpx;
+  margin-right: 20rpx;
+  border: 2rpx solid var(--line-2);
+  border-radius: 9rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: var(--ink-3);
+  transform: rotate(-2.5deg);
+}
+
+.seal-first {
+  border-color: var(--cinnabar);
+  background: var(--cinnabar-soft);
+  color: var(--cinnabar);
+}
+
+.seal-health {
+  border-color: var(--amber);
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.entry-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.entry-text {
+  font-size: 29rpx;
+  line-height: 1.62;
+  color: var(--ink);
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.entry-meta {
+  display: flex;
+  align-items: center;
+  margin-top: 14rpx;
+  font-size: 21rpx;
+  color: var(--ink-3);
+}
+
+.entry-dot {
+  margin: 0 8rpx;
+  color: var(--line-2);
+}
+
+.entry-kind {
+  color: var(--ink-3);
+}
+
+.entry-del {
+  flex: none;
+  padding: 4rpx 4rpx 4rpx 20rpx;
+  font-size: 22rpx;
+  color: var(--ink-3);
+}
+
+.thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 16rpx;
+}
+
+.thumb {
+  width: 148rpx;
+  height: 148rpx;
+  border-radius: var(--r-sm);
+  background: var(--card-3);
+  margin: 0 10rpx 10rpx 0;
+}
+
+/* ── 空态 ── */
+.empty {
+  padding: 56rpx 0 64rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 一滴未干的墨 */
+.empty-mark {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: var(--line-2);
+  margin-bottom: 20rpx;
+  animation: breathe 3.4s ease-in-out infinite;
+}
+
+.empty-text {
+  font-size: 25rpx;
+  color: var(--ink-3);
+  letter-spacing: 1.2rpx;
+}
+
+.bottom-space {
+  height: 40rpx;
+}
+
+/* ── 输入区 ── */
+.composer {
+  flex: none;
+  padding: 16rpx 28rpx 18rpx;
+  background: linear-gradient(
+    180deg,
+    rgba(233, 245, 245, 0) 0%,
+    rgba(233, 245, 245, 0.93) 16%,
+    rgba(233, 245, 245, 0.97) 100%
+  );
+}
+
+.kinds {
+  display: flex;
+  margin-bottom: 14rpx;
+}
+
+.kind {
+  font-size: 22rpx;
+  color: var(--ink-3);
+  padding: 8rpx 22rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid var(--line);
+  margin-right: 12rpx;
+  transition: color 160ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+
+.kind.active {
+  color: var(--cinnabar);
+  border-color: var(--primary-line);
+  background: var(--cinnabar-soft);
+}
+
+.pending {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 14rpx;
+}
+
+.pending-item {
+  position: relative;
+  margin-right: 12rpx;
+}
+
+.pending-img {
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: var(--r-sm);
+  background: var(--card-3);
+}
+
+.pending-x {
+  position: absolute;
+  top: -8rpx;
+  right: -8rpx;
+  width: 34rpx;
+  height: 34rpx;
+  border-radius: 50%;
+  background: rgba(35, 33, 30, 0.72);
+  color: #fff;
+  font-size: 22rpx;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.composer-row {
+  display: flex;
+  align-items: flex-end;
+}
+
+.composer-input {
+  flex: 1;
+  min-height: 74rpx;
+  max-height: 220rpx;
+  padding: 16rpx 20rpx;
+  background: var(--card-2);
+  border: 1rpx solid var(--line);
+  border-radius: var(--r-md);
+  color: var(--ink);
+  font-size: 28rpx;
+  line-height: 1.45;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.pic-btn {
+  flex: none;
+  width: 74rpx;
+  height: 74rpx;
+  margin-left: 12rpx;
+  border-radius: var(--r-md);
+  border: 1rpx solid var(--line-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 150ms ease;
+}
+
+.pic-btn-hover {
+  background: var(--card-3);
+}
+
+.pic-btn-text {
+  font-size: 24rpx;
+  color: var(--ink-2);
+}
+
+.send-btn {
+  flex: none;
+  height: 74rpx;
+  padding: 0 30rpx;
+  margin-left: 12rpx;
+  border-radius: var(--r-md);
+  background: var(--cinnabar);
+  color: #ffffff;
+  font-size: 27rpx;
+  font-weight: 600;
+  letter-spacing: 2rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 160ms ease, opacity 160ms ease, transform 160ms ease;
+}
+
+.send-btn-hover {
+  background: var(--cinnabar-dim);
+  transform: translateY(1rpx);
+}
+
+.send-btn.off {
+  opacity: 0.45;
+}
+
+/* ── 底部导航 ── */
+.tabbar {
+  flex: none;
+  height: calc(102rpx + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  display: flex;
+  background: linear-gradient(
+    180deg,
+    rgba(233, 245, 245, 0) 0%,
+    rgba(233, 245, 245, 0.9) 26%,
+    #eef5f5 56%
+  );
+}
+
+.tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 25rpx;
+  color: var(--ink-3);
+  letter-spacing: 3rpx;
+  position: relative;
+  transition: color 200ms ease;
+}
+
+.tab.active {
+  color: var(--cinnabar);
+  font-weight: 600;
+}
+
+.tab.active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 44rpx;
+  height: 4rpx;
+  border-radius: 0 0 4rpx 4rpx;
+  background: var(--cinnabar);
+  animation: ink-rise 260ms ease-out both;
+}
+
+/* ── 时间轴 ── */
+.tl-group {
+  position: relative;
+}
+
+.tl-date {
+  display: flex;
+  align-items: baseline;
+  padding: 30rpx 0 14rpx;
+}
+
+.tl-label {
+  flex: 1;
+  font-size: 26rpx;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+  color: var(--ink);
+}
+
+.tl-count {
+  font-size: 20rpx;
+  color: var(--ink-3);
+}
+
+.tl-body {
+  padding-left: 0;
+}
+
+/* 每条记录一行：时刻 / 轨道 / 卡片 */
+.tl-item {
+  display: flex;
+  align-items: stretch;
+}
+
+.tl-time {
+  width: 84rpx;
+  flex: none;
+  text-align: right;
+  padding: 28rpx 16rpx 0 0;
+  font-size: 21rpx;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5rpx;
+}
+
+.tl-rail {
+  width: 26rpx;
+  flex: none;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding-top: 34rpx;
+}
+
+.tl-rail::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2rpx;
+  background: rgba(14, 145, 135, 0.16);
+}
+
+.tl-item:last-child .tl-rail::before {
+  bottom: auto;
+  height: 42rpx;
+}
+
+.tl-node {
+  position: relative;
+  z-index: 1;
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 5rpx rgba(14, 145, 135, 0.14);
+}
+
+.tl-node-health {
+  background: var(--amber);
+  box-shadow: 0 0 0 5rpx rgba(176, 122, 60, 0.16);
+}
+
+.tl-card {
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 14rpx;
+}
+
+/* ── 体温与用药 ── */
+.vitals {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 12rpx;
+}
+
+.vital-temp {
+  font-size: 31rpx;
+  font-weight: 700;
+  color: var(--amber);
+  margin-right: 14rpx;
+  font-variant-numeric: tabular-nums;
+}
+
+.vital-med {
+  font-size: 20rpx;
+  line-height: 1.4;
+  color: var(--ink-2);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1rpx solid rgba(255, 255, 255, 0.8);
+  border-radius: 8rpx;
+  padding: 4rpx 14rpx;
+  margin: 0 10rpx 8rpx 0;
+}
+
+/* ── 标签 ── */
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 12rpx;
+}
+
+.tag {
+  font-size: 19rpx;
+  line-height: 1.4;
+  color: var(--primary);
+  background: var(--primary-soft);
+  border-radius: 999rpx;
+  padding: 3rpx 15rpx;
+  margin: 0 10rpx 8rpx 0;
+}
+
+/* ── 备注与地点 ── */
+.entry-note {
+  display: block;
+  margin-top: 10rpx;
+  padding-left: 14rpx;
+  border-left: 3rpx solid rgba(14, 145, 135, 0.32);
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.entry-place {
+  color: var(--primary);
+}
+
+/* ── 时间轴里的记录：不套卡片，直接刻在轴上 ── */
+.tl-card .entry {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0 0 6rpx;
+  overflow: visible;
+}
+
+.tl-card .entry::before {
+  display: none;
+}
+
+.tl-card .entry-text {
+  font-size: 28rpx;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.tl-card .entry-meta {
+  margin-top: 10rpx;
+}
+
+.tl-card .thumb {
+  width: 132rpx;
+  height: 132rpx;
+}
+
+/* 节点改成刻度：一条短横线穿过竖线，比圆点更像"刻"出来 */
+.tl-node {
+  width: 16rpx;
+  height: 2rpx;
+  border-radius: 1rpx;
+  background: var(--primary);
+  box-shadow: none;
+}
+
+.tl-node-health {
+  background: var(--amber);
+  box-shadow: none;
+}
+
+.tl-rail::before {
+  background: rgba(14, 145, 135, 0.2);
+}
+
+.tl-time {
+  font-size: 22rpx;
+  color: var(--ink-2);
+}
+
+/* 时刻来自原文时加重：这是你说的发生时间，不是录入时间 */
+.tl-time-strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.draft-info { display: flex; align-items: center; flex-wrap: wrap; gap: 12rpx; font-size: 22rpx; color: var(--ink-2); margin-bottom: 10rpx; }
+.family-row { gap: 16rpx; }
+
+.baby-row { color: var(--primary); font-size: 27rpx; margin: 8rpx 0 12rpx; }
+
+.recognition { font-size: 22rpx; color: var(--ink-2); margin-bottom: 10rpx; }
+.recognition .btn-text { display: inline-block; }
+.recognition-warning { display: block; color: #a45b18; }
+.proposals { height: 260rpx; margin-bottom: 12rpx; }
+.proposal { padding: 12rpx 0; border-bottom: 1rpx solid rgba(14,145,135,.15); font-size: 24rpx; }
+.char-count { display: block; text-align: right; font-size: 22rpx; margin-bottom: 8rpx; }
+.plan-label, .ai-status { display: block; font-size: 22rpx; color: var(--primary); margin-bottom: 8rpx; }
+.composer-input { max-height: 180rpx; }
+
+.proposal .btn-text { width: auto; margin: 0; padding: 0 6rpx; font-size: 22rpx; }
+.proposal switch { transform: scale(.75); transform-origin: left center; width: 82rpx; }
+
+.card-preview { max-height: 250rpx; overflow-y: auto; }
