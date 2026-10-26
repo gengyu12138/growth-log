@@ -117,9 +117,15 @@ module.exports = {
 命令行部署（微信开发者工具 CLI），**必须带 `--remote-npm-install`**：
 
 ```bash
-cli cloud functions deploy --env cloud1-xxxxxxxx --names family entries \
-  --remote-npm-install --project /绝对路径/本仓库
+# macOS 下 CLI 路径，Windows 为安装目录下的 cli.bat
+/Applications/wechatwebdevtools.app/Contents/MacOS/cli cloud functions deploy \
+  --env cloud1-xxxxxxxx \
+  --names family entries \
+  --remote-npm-install \
+  --project /绝对路径/本仓库
 ```
+
+注意 `--project` 指向**仓库根目录**（含 `project.config.json` 的那层），不是 `miniprogram/`。
 
 不带这个参数，CLI 只上传 `index.js` + `package.json`，云端不会安装 `wx-server-sdk`，调用直接报 `Cannot find module 'wx-server-sdk'`。
 
