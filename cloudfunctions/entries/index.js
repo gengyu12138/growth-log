@@ -476,7 +476,7 @@ exports.main = async (event) => {
       assistant: 1, promptSettings: 1, scopedAdd: 1, naturalSearch: 1, mergeEntries: 1, topics: 1,
       cardPresentation: 1, editRebuild: 1, entryPhotos: 1, cloudViews: 1,
       pictureUnderstanding: process.env.DEEPSEEK_KEY ? 1 : 0,
-      imageText: ocr.configured() ? 1 : 0, speechToText: speech.configured() ? 1 : 0 };
+      imageText: ocr.configured() ? 1 : 0, speechToText: speech.configured() ? 1 : 0, speechTasks: 1 };
   }
 
   if (action === 'interpretSearch') {
@@ -525,6 +525,18 @@ exports.main = async (event) => {
   if (action === 'getViews' || action === 'saveViews') {
     try { return await viewStore.handle(db, member, event, nowCN()); }
     catch (err) { return { ok: false, error: err.message || '关注项同步失败' }; }
+  }
+
+  if (action === 'transcribeStart' || action === 'transcribeStatus') {
+    try {
+      if (!['owner', 'editor'].includes(member.role)) throw new Error('只读成员不能录入语音');
+      if (event.memberId !== member._id || event.familyCode !== member.family_code) throw new Error('家庭身份已变化，请重新进入后录音');
+      if (!speech.configured()) throw new Error('语音转文字尚未开通，请管理员配置语音服务');
+      if (action === 'transcribeStatus') return Object.assign({ ok: true }, await speech.taskStatus(event.task, member));
+      speech.audioData(event.audio);
+      await tencent.consume(db, 'entry_speech_usage', 'file-' + nowCN().slice(0, 7), 300, '录音转写');
+      return Object.assign({ ok: true }, await speech.startTask(event.audio, member));
+    } catch (err) { return { ok: false, error: err.message || '语音转文字失败，请重试' }; }
   }
 
   if (action === 'transcribe') {

@@ -194,7 +194,7 @@
   </view>
   <view class="composer-row">
     <button class="mode-button" bindtap="toggleInputMode" disabled="{{busy || recording || transcribing || voiceStarting}}" aria-label="{{inputMode === 'voice' ? '切换文字输入' : '切换语音输入'}}">{{inputMode === 'voice' ? '键盘' : '语音'}}</button>
-    <button wx:if="{{inputMode === 'voice'}}" class="speak-button {{recording ? 'recording' : ''}}" bindtap="voiceTap" disabled="{{busy || transcribing || voiceStarting}}">{{recording ? '说完了 · ' + voiceSeconds + '秒' : voiceStarting ? '准备中…' : transcribing ? '正在转写…' : text ? '继续说话' : '点击说话'}}</button>
+    <button wx:if="{{inputMode === 'voice'}}" class="speak-button {{recording ? 'recording' : ''}}" bindtap="voiceTap" disabled="{{busy || recognizing || transcribing || voiceStarting}}">{{recording ? '说完了 · ' + voiceSeconds + '秒' : voiceStarting ? '准备中…' : transcribing ? '正在转写…' : voiceRetry ? '重新录音' : text ? '继续说话' : '点击说话'}}</button>
     <textarea wx:else class="composer-input" value="{{text}}" disabled="{{busy}}" bindinput="onText" bindblur="onKbBlur" bindkeyboardheightchange="onKbHeight" adjust-position auto-height maxlength="-1" cursor-spacing="24" placeholder="记下这个瞬间…" />
     <button wx:if="{{!recording}}" class="add-button" bindtap="inputActions" disabled="{{busy || transcribing || voiceStarting}}" aria-label="照片、识别和草稿">＋</button>
     <button wx:if="{{recording}}" class="mode-button" bindtap="cancelVoice">取消</button>
@@ -202,7 +202,7 @@
   </view>
   <text wx:if="{{voiceStatus}}" class="voice-status">{{voiceStatus}}</text>
   <button wx:if="{{voicePermissionDenied}}" class="btn-text" bindtap="voiceSettings">前往麦克风设置</button>
-  <button wx:if="{{voiceRetry && !transcribing}}" class="btn-text" disabled="{{busy || recording || voiceStarting}}" bindtap="retryVoice">重试这段语音</button>
+  <button wx:if="{{voiceRetry && !transcribing}}" class="btn-text" disabled="{{busy || recognizing || recording || voiceStarting}}" bindtap="retryVoice">{{voiceRetryLabel || '继续获取文字'}}</button>
   <text wx:if="{{text.length >= 450}}" class="char-count">{{text.length}} / 500 · 原文已保留</text>
 </view>
 

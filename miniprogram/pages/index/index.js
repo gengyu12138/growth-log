@@ -108,7 +108,7 @@ Page({
   },
 
   onHide() {
-    if ((this.data.recording || this.data.voiceStarting) && this.voice) this.voice.cancel();
+    if ((this.data.recording || this.data.voiceStarting || this.data.transcribing) && this.voice) this.voice.cancel();
     this.persistDraft();
   },
 
