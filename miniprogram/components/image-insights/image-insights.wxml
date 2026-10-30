@@ -1,0 +1,14 @@
+<view wx:if="{{items.length}}" class="insights">
+  <text class="heading">照片识别草稿</text><text class="hint">核对动作、数字和日期后采用。带入后正文限500字，原有输入会保留；未采用内容不会自动写入记录。</text>
+  <view wx:for="{{items}}" wx:key="path" class="insight">
+    <view class="head"><image src="{{item.path}}" mode="aspectFill" data-path="{{item.path}}" bindtap="preview" /><text>照片 {{item.number}} · {{item.status === 'working' ? '正在看图…' : item.status === 'queued' ? '等待识别' : item.status === 'error' ? '未完成' : '请核对'}}</text><button wx:if="{{item.status === 'done' && items.length > 1}}" data-path="{{item.path}}" bindtap="toggle">{{expanded === item.path ? '收起' : '查看'}}</button></view>
+    <text wx:if="{{item.error}}" class="error">{{item.error}}</text><button wx:if="{{item.status === 'error'}}" data-path="{{item.path}}" disabled="{{busy}}" bindtap="retry">重试这张照片</button>
+    <view wx:if="{{item.status === 'done' && (items.length === 1 || expanded === item.path)}}">
+      <text wx:if="{{item.result.warning}}" class="warning">{{item.result.warning}}</text><text wx:if="{{item.result.incomplete}}" class="warning">文字未完整读取，请裁剪重试，或只采用已核对的部分。</text>
+      <block wx:if="{{item.result.caption || item.result.category !== 'document'}}"><text class="label">画面描述 · 可修改</text><textarea class="caption" value="{{item.result.caption}}" maxlength="160" disabled="{{busy}}" data-path="{{item.path}}" data-field="caption" bindinput="edit" /></block>
+      <block wx:if="{{item.result.text || item.result.category !== 'scene'}}"><text class="label">图片文字 · 可删去不需要的部分</text><textarea class="recognized-text" value="{{item.result.text}}" maxlength="2000" disabled="{{busy}}" data-path="{{item.path}}" data-field="text" bindinput="edit" /></block>
+      <text wx:if="{{!item.result.caption && !item.result.text}}" class="hint">没有可靠的动作描述或可读文字，可保留照片并手动补充。</text>
+      <view class="actions"><button data-path="{{item.path}}" disabled="{{busy}}" bindtap="retry">重新识别</button><button wx:if="{{item.result.caption || item.result.text}}" class="apply" data-path="{{item.path}}" disabled="{{busy}}" bindtap="apply">采用并整理</button></view>
+    </view>
+  </view>
+</view>

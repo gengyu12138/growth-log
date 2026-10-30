@@ -1,23 +1,28 @@
 const app = getApp();
 const { editField, clearInterval } = require('../../utils/cards');
 const dates = require('../../utils/date');
+const { createPictureReader } = require('../../utils/pictures');
 const FORM_FIELDS = ['content', 'note', 'date', 'at', 'planned', 'kindIndex', 'images', 'card', 'reanalyzed'];
 
 Page({
   data: { loading: true, busy: false, analyzing: false, pending: false, dirty: false, error: '', conflict: false, canEdit: false,
     entryLoaded: false, readOnly: false, mayEdit: false, sourceWarning: '', card: null, cardsSupported: false,
     content: '', note: '', date: '', at: '', planned: false, smartSupported: false, kindIndex: 0, staleDraft: null,
-    kinds: ['日常', '第一次', '健康'], images: [], photosSupported: false, reanalyzed: false, analysisStatus: '', readingEntry: null, fallbackTime: '' },
+    kinds: ['日常', '第一次', '健康'], images: [], imageInsights: [], pictureAnalyzing: false, pictureStatus: '', photosSupported: false, reanalyzed: false, analysisStatus: '', readingEntry: null, fallbackTime: '' },
   onLoad(options) {
+    this.pictureReader = createPictureReader(this, () => {
+      if (!this.data.readOnly && this.data.canEdit && !this.data.pending) { this.setData({ dirty: true }); this.persist(); }
+    });
     this.id = options.id;
     this.expectedRevision = options.revision === undefined ? null : Number(options.revision);
     this.setData({ readOnly: options.readonly === '1' }); this.load();
   },
   onHide() { this.persist(); },
-  onUnload() { this.disposed = true; this.loadId = (this.loadId || 0) + 1; this.persist(); },
+  onUnload() { this.disposed = true; this.pictureReader.dispose(); this.loadId = (this.loadId || 0) + 1; this.persist(); },
   async load() {
     if (this.data.busy) return;
     const loadId = this.loadId = (this.loadId || 0) + 1;
+    this.pictureReader.reset();
     this.setData({ loading: true, error: '', conflict: false, canEdit: false, entryLoaded: false, card: null, sourceWarning: '' });
     try {
       await app.requireRecordTools();
@@ -58,12 +63,16 @@ Page({
       this.approvedTypes = saved.approvedTypes || [];
       const form = Object.fromEntries(FORM_FIELDS.map((key) => [key, f[key]]));
       this.setData(Object.assign(form, { dirty: true, pending: !!this.pendingSubmit, analysisStatus: '已恢复本机编辑草稿，请检查后保存' }));
+      this.pictureReader.restore(f.imageInsights);
+      if (!this.pendingSubmit) this.pictureReader.resume();
     } catch (err) { this.setData({ error: err.message || '编辑草稿读取失败' }); }
   },
   useStaleDraft() {
     if (!this.data.staleDraft) return;
     const form = Object.fromEntries(FORM_FIELDS.map((key) => [key, this.data.staleDraft[key]]));
-    this.setData(Object.assign(form, { staleDraft: null, dirty: true, card: null, reanalyzed: false, sourceWarning: '已载入旧草稿，请对照最新记录并重新整理卡片，确认后再保存' })); this.persist();
+    const insights = this.data.staleDraft.imageInsights;
+    this.setData(Object.assign(form, { staleDraft: null, dirty: true, card: null, reanalyzed: false, sourceWarning: '已载入旧草稿，请对照最新记录并重新整理卡片，确认后再保存' }));
+    this.pictureReader.restore(insights); this.persist();
   },
   discardStaleDraft() {
     wx.showModal({ title: '保留云端最新记录？', content: '这会丢弃本机旧编辑草稿，云端记录不变。', success: (r) => {
@@ -73,7 +82,7 @@ Page({
   form() {
     const d = this.data;
     return { content: d.content, note: d.note, date: d.date, at: d.at, planned: d.planned,
-      kindIndex: d.kindIndex, images: d.images, card: d.card, reanalyzed: d.reanalyzed };
+      kindIndex: d.kindIndex, images: d.images, imageInsights: this.pictureReader.snapshot(), card: d.card, reanalyzed: d.reanalyzed };
   },
   persist() {
     if (!this.draftKey || !this.data.dirty || this.data.readOnly || !this.entry) return;
@@ -83,6 +92,7 @@ Page({
   change(patch, invalidate) {
     if (!this.data.canEdit || this.data.busy || this.data.analyzing || this.data.pending || this.data.staleDraft) return;
     this.setData(Object.assign({}, patch, { dirty: true }, invalidate ? { card: null, reanalyzed: false, analysisStatus: '正文或时间已变化，可重新整理卡片' } : {}));
+    if (patch.images) this.pictureReader.reconcile();
     this.persist();
   },
   onContent(e) { this.change({ content: e.detail.value }, true); },
@@ -117,14 +127,30 @@ Page({
     if (!this.data.photosSupported) { this.setData({ error: '补照片需要同步新版云函数，原有记录仍可查看和编辑' }); return; }
     if (this.data.images.length >= 9) return;
     this.setData({ busy: true });
+    const added = [];
     try {
       const result = await wx.chooseMedia({ count: 9 - this.data.images.length, mediaType: ['image'], sizeType: ['compressed'] });
       for (const file of result.tempFiles) {
         const saved = await new Promise((resolve, reject) => wx.saveFile({ tempFilePath: file.tempFilePath, success: resolve, fail: reject }));
         this.setData({ images: this.data.images.concat(saved.savedFilePath), dirty: true }); this.persist();
+        added.push(saved.savedFilePath);
       }
     } catch (err) { if (!String(err.errMsg || '').includes('cancel')) this.setData({ error: '照片未全部加入，请重试' }); }
-    finally { if (!this.disposed) this.setData({ busy: false }); }
+    finally { if (!this.disposed) { this.setData({ busy: false }); if (added.length) this.pictureReader.add(added); } }
+  },
+  analyzePhotos() { if (this.data.canEdit && !this.data.busy && !this.data.pending && !this.data.analyzing && !this.data.staleDraft) this.pictureReader.add(this.data.images); },
+  retryPicture(e) { if (this.data.canEdit && !this.data.busy && !this.data.pending && !this.data.analyzing && !this.data.staleDraft) this.pictureReader.retry(e.detail.path); },
+  editPictureInsight(e) { if (this.data.canEdit && !this.data.busy && !this.data.pending && !this.data.analyzing && !this.data.staleDraft) this.pictureReader.edit(e.detail.path, e.detail.field, e.detail.value); },
+  async applyPictureInsight(e) {
+    if (!this.data.canEdit || this.data.busy || this.data.pending || this.data.analyzing || this.data.staleDraft) return;
+    try {
+      const composed = this.pictureReader.compose(e.detail.path, this.data.content.trim()), content = composed.text;
+      if (!composed.changed) { this.pictureReader.markApplied(e.detail.path, composed.block); this.setData({ pictureStatus: '这段识别内容已在当前正文中' }); return; }
+      if (content.length > 500) throw new Error('带入后超过500字，请先精简图片识别结果；原图仍保留');
+      this.change({ content }, true); this.pictureReader.markApplied(e.detail.path, composed.block);
+      this.setData({ pictureStatus: '已带入编辑草稿，确认保存后才修改原记录' });
+      if (this.data.cardsSupported) await this.reanalyze();
+    } catch (err) { this.setData({ pictureStatus: err.message || '尚未带入，请保留原图后重试' }); }
   },
   removePhoto(e) { this.change({ images: this.data.images.filter((_, i) => i !== Number(e.currentTarget.dataset.index)) }); },
   reloadLatest() {
@@ -143,6 +169,7 @@ Page({
           content: '修改前：' + (this.entry.content || '照片记录') + '\n修改后：' + (this.data.content || '照片记录')
             + '\n发生日期：' + this.data.date + ' ' + (this.data.at || (this.data.fallbackTime ? this.data.fallbackTime + '（记录时间）' : '时间待核对'))
             + '\n照片：' + (this.entry.images || []).length + ' → ' + this.data.images.length + ' 张'
+            + (this.data.pictureAnalyzing ? '\n照片识别仍在进行，本次只保存当前正文与原图。' : '')
             + (this.approvedTypes && this.approvedTypes.length ? '\n确认新类型：' + this.approvedTypes.join('、') : '')
             + '\n卡片以页面预览为准，确认后才修改原记录。', confirmText: '确认保存', cancelText: '返回检查', success: (r) => resolve(r.confirm), fail: () => resolve(false) }));
         if (!confirmed || this.disposed) return;
@@ -159,6 +186,7 @@ Page({
         this.setData({ pending: true }); this.persist();
       }
       await app.entryRequest(this.pendingSubmit);
+      this.pictureReader.reset();
       this.pendingSubmit = null; this.setData({ dirty: false, pending: false }); wx.removeStorageSync(this.draftKey);
       wx.showToast({ title: '已保存', icon: 'none' }); wx.navigateBack();
     } catch (err) {

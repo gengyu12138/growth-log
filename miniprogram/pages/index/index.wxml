@@ -178,6 +178,9 @@
     </view>
   </view>
 
+  <button wx:if="{{images.length && imageInsights.length < images.length}}" class="btn-text" disabled="{{busy || pickingImages || recording || transcribing || voiceStarting}}" bindtap="analyzePictures">识别照片中的信息和动作</button>
+  <image-insights items="{{imageInsights}}" busy="{{busy || recognizing || recording || transcribing || voiceStarting}}" bind:retry="retryPicture" bind:change="editPictureInsight" bind:apply="applyPictureInsight" />
+  <text wx:if="{{pictureStatus}}" class="voice-status">{{pictureStatus}}</text>
   <view wx:if="{{duplicateCandidates.length}}" class="duplicate-review">
     <text class="field-label">发现相似记录，请核对是否为同一次</text>
     <view wx:for="{{duplicateCandidates}}" wx:key="_id"><text>{{item.happened_on}} {{item.at}}</text><text class="duplicate-text">{{item.content}}</text><button class="btn-text" data-id="{{item._id}}" bindtap="inspectDuplicate">查看已有记录</button></view>

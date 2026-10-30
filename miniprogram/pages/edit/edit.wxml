@@ -33,6 +33,9 @@
     <textarea class="field-input note" value="{{note}}" maxlength="200" disabled="{{busy || pending || analyzing || staleDraft || !canEdit}}" bindinput="onNote" />
     <view wx:if="{{images.length}}" class="images"><view wx:for="{{images}}" wx:key="*this"><image src="{{item}}" mode="aspectFill" data-src="{{item}}" bindtap="onPreview" /><button wx:if="{{canEdit && photosSupported}}" class="btn-text" disabled="{{busy || pending || analyzing || staleDraft}}" data-index="{{index}}" bindtap="removePhoto">移出这条记录</button></view></view>
     <button wx:if="{{canEdit && images.length < 9}}" class="btn btn-ghost" disabled="{{busy || pending || analyzing || staleDraft}}" bindtap="addPhotos">补充照片</button>
+    <button wx:if="{{canEdit && images.length && imageInsights.length < images.length}}" class="btn-text" disabled="{{busy || pending || analyzing || staleDraft}}" bindtap="analyzePhotos">识别照片中的信息和动作</button>
+    <image-insights wx:if="{{canEdit}}" items="{{imageInsights}}" busy="{{busy || pending || analyzing || staleDraft}}" bind:retry="retryPicture" bind:change="editPictureInsight" bind:apply="applyPictureInsight" />
+    <text wx:if="{{pictureStatus}}" class="t-small">{{pictureStatus}}</text>
     <text wx:if="{{canEdit}}" class="t-micro">保存时检查记录版本。移出照片只改变本条引用，不删除云端照片文件。</text>
     <button wx:if="{{canEdit}}" class="btn btn-primary" disabled="{{busy || conflict || analyzing || staleDraft}}" bindtap="onSave">{{busy ? '保存中…' : pending ? '核对并重试同一份修改' : '检查完成，保存修改'}}</button>
   </view>

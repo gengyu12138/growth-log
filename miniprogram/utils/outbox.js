@@ -1,5 +1,5 @@
 const dates = require('./date');
-const FORM_KEYS = ['text', 'images', 'kind', 'date', 'baseDate', 'at', 'dateManual', 'timeManual', 'planned', 'planManual', 'kindManual', 'knownTypes', 'newTypes', 'proposals'];
+const FORM_KEYS = ['text', 'images', 'imageInsights', 'kind', 'date', 'baseDate', 'at', 'dateManual', 'timeManual', 'planned', 'planManual', 'kindManual', 'knownTypes', 'newTypes', 'proposals'];
 let sending = null, sendingScope = '';
 const key = (member) => 'entryQueue:' + member._id + ':' + member.family_code;
 const same = (a, b) => a && b && a._id === b._id && a.family_code === b.family_code;
@@ -11,6 +11,7 @@ function form(value) {
     || value.images.length > 9 || value.images.some((path) => typeof path !== 'string')
     || !dates.validDate(value.date) || !['daily', 'first', 'health'].includes(value.kind)) throw new Error('本机草稿格式异常，请保留原内容并联系管理员');
   const result = {};
+  if (value.imageInsights !== undefined && (!Array.isArray(value.imageInsights) || value.imageInsights.length > 9)) throw new Error('图片识别草稿格式异常，请保留原图后重试');
   for (const name of FORM_KEYS) if (value[name] !== undefined) result[name] = copy(value[name]);
   return result;
 }

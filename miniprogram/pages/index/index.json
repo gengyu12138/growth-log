@@ -4,7 +4,8 @@
   "usingComponents": {
     "backdrop": "/components/backdrop/backdrop",
     "smart-card": "/components/smart-card/smart-card",
-    "record-card": "/components/record-card/record-card"
+    "record-card": "/components/record-card/record-card",
+    "image-insights": "/components/image-insights/image-insights"
   },
   "navigationStyle": "custom"
 }

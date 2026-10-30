@@ -10,6 +10,7 @@ const retrieval = require('./retrieval');
 const { merge } = require('./merge');
 const ocr = require('./ocr');
 const tencent = require('./tencent');
+const pictures = require('./pictures');
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
@@ -158,9 +159,10 @@ function extractTime(content) {
   return '';
 }
 
-function callDeepSeek(key, text, prompt = TAG_PROMPT, maxTokens = 3500) {
+function callDeepSeek(key, text, prompt = TAG_PROMPT, maxTokens = 3500, options = {}) {
   const body = JSON.stringify({
-    model: 'deepseek-chat',
+    model: options.model || 'deepseek-chat',
+    ...(options.thinking ? { thinking: options.thinking } : {}),
     messages: [
       { role: 'system', content: prompt },
       { role: 'user', content: text },
@@ -195,6 +197,7 @@ function callDeepSeek(key, text, prompt = TAG_PROMPT, maxTokens = 3500) {
               reject(new Error(json.error.message || 'api error'));
               return;
             }
+            if (options.rejectTruncated && json.choices[0].finish_reason === 'length') throw new Error('图片内容较多，识别未完成，请裁剪到需要记录的部分');
             resolve(json.choices[0].message.content);
           } catch (e) {
             reject(e);
@@ -472,6 +475,7 @@ exports.main = async (event) => {
     return { ok: true, idempotentAdd: true, softDeleteOnly: true, recordTools: 1, smartInput: 1, dynamicCards: 1,
       assistant: 1, promptSettings: 1, scopedAdd: 1, naturalSearch: 1, mergeEntries: 1, topics: 1,
       cardPresentation: 1, editRebuild: 1, entryPhotos: 1, cloudViews: 1,
+      pictureUnderstanding: process.env.DEEPSEEK_KEY ? 1 : 0,
       imageText: ocr.configured() ? 1 : 0, speechToText: speech.configured() ? 1 : 0 };
   }
 
@@ -542,6 +546,14 @@ exports.main = async (event) => {
       await tencent.consume(db, 'entry_ocr_usage', nowCN().slice(0, 7), 300, '照片识别');
       return Object.assign({ ok: true }, await ocr.recognize(event.image, event.mode));
     } catch (err) { return { ok: false, error: err.message || '照片识别失败，请重试' }; }
+  }
+
+  if (action === 'analyzePicture') {
+    if (!['owner', 'editor'].includes(member.role)) return { ok: false, error: '只读成员不能整理照片草稿' };
+    if (event.memberId !== member._id || event.familyCode !== member.family_code) return { ok: false, error: '家庭身份已变化，请重新选择图片' };
+    if (!process.env.DEEPSEEK_KEY) return { ok: false, error: '图片理解尚未配置，原图仍可保存' };
+    try { return { ok: true, analysis: await pictures.analyze(event.image, callDeepSeek) }; }
+    catch (err) { return { ok: false, error: '图片识别未完成，原图已保留；可重试、裁剪或手动描述' }; }
   }
 
   if (['getPromptSettings', 'getMaintenanceRules', 'savePromptSettings'].includes(action)) {
