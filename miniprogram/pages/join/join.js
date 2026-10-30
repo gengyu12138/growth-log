@@ -2,7 +2,7 @@ const app = getApp();
 
 Page({
   data: {
-    code: '',
+    code: '', mode: 'join',
     name: '',
     msg: '',
     busy: false,
@@ -25,11 +25,13 @@ Page({
     this.setData({ name: e.detail.value });
   },
 
+  onMode(e) { if (!this.data.busy) this.setData({ mode: e.currentTarget.dataset.mode, code: '', msg: '' }); },
   onJoin() {
+    if (this.data.mode === 'create') { this.onCreate(); return; }
     if (this.data.busy) return;
     const code = this.data.code.trim();
-    if (code.length < 4) {
-      this.setData({ msg: '码至少 4 位' });
+    if (!/^[a-z0-9]{6}$/.test(code)) {
+      this.setData({ msg: '请输入家人发来的六位邀请码' });
       return;
     }
     this.submit('redeem', { code, name: this.data.name.trim() });
@@ -37,6 +39,7 @@ Page({
 
   onCreate() {
     if (this.data.busy) return;
+    if (this.data.mode !== 'create') { this.setData({ mode: 'create', code: '', msg: '' }); return; }
     const code = this.data.code.trim();
     if (code && (code.length < 4 || code.length > 12)) {
       this.setData({ msg: '家庭码用 4–12 位字母或数字' });

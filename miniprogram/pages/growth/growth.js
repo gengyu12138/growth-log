@@ -50,7 +50,7 @@ Page({
         this.setData({ statistics: Object.assign({}, this.stats, { groups: this.stats.groups.map((group) => ({
           type: group.type, count: group.count, metrics: group.metrics.map((metric) => ({ label: metric.label, unit: metric.unit,
             additive: metric.additive, count: metric.count, total: metric.total, average: metric.average,
-            min: metric.min, max: metric.max, latest: metric.latest })) })) }) });
+            min: metric.min, max: metric.max, latest: metric.latest, previous: metric.sources.length > 1 ? metric.sources[1].value : null, latestDate: metric.sources[0].date, points: metric.sources.slice(0, 6).map((source) => ({ date: source.date, value: source.value })) })) })) }) });
       } else if (tab === 'summary') {
         const rows = await app.collectEntries({ month }, member.family_code, cancelled);
         if (cancelled()) return;
@@ -68,13 +68,25 @@ Page({
         const groups = [];
         for (const target of targets) {
           const rows = await app.collectEntries({ month: target.date.slice(0, 7) }, member.family_code, cancelled);
-          const entries = rows.filter((e) => !e.planned && e.happened_on === target.date);
-          if (entries.length) groups.push(Object.assign({}, target, { entries }));
+          const exact = rows.filter((e) => !e.planned && e.happened_on === target.date);
+          const entries = exact.length ? exact : rows.filter((e) => !e.planned && e.happened_on < today).slice(0, 3);
+          if (entries.length) groups.push({ label: exact.length ? target.label : target.label === '一个月前' ? '上个月的回忆' : '去年这个月的回忆', date: entries[0].happened_on, entries });
         }
-        const r = await app.entryRequest({ action: 'list', scope: 'favorites' });
+        const [favorites, recent] = await Promise.all([
+          app.entryRequest({ action: 'list', scope: 'favorites' }), app.entryRequest({ action: 'list' }),
+        ]);
         if (cancelled()) return;
-        if (!Array.isArray(r.list) || !r.member || r.member.family_code !== member.family_code) throw new Error('家庭记录返回异常');
-        this.setData({ groups, milestones: r.list.filter((e) => !e.planned && e.happened_on < today).slice(0, 6) });
+        if ([favorites, recent].some((r) => !Array.isArray(r.list) || !r.member || r.member.family_code !== member.family_code)) throw new Error('家庭记录返回异常');
+        const seen = new Set();
+        const milestones = favorites.list.concat(recent.list.filter((e) => e.kind === 'first')).filter((e) => {
+          if (seen.has(e._id) || e.planned || e.happened_on > today) return false;
+          seen.add(e._id); return true;
+        }).sort((a,b) => b.happened_on.localeCompare(a.happened_on));
+        if (!groups.length) {
+          const entries = recent.list.filter((e) => !e.planned && e.happened_on < today).slice(0, 3);
+          if (entries.length) groups.push({ label: '再看看最近留下的片段', date: entries[0].happened_on, entries });
+        }
+        this.setData({ groups, milestones: milestones.slice(0, 8) });
       }
     } catch (err) {
       if (id === this.loadId) this.setData({ error: err.message || '读取失败，请重试' });
@@ -129,11 +141,17 @@ Page({
     const end = dates.fmtDate(new Date(Number(this.data.month.slice(0, 4)), Number(this.data.month.slice(5)), 0));
     const date = end > today ? today : end;
     try {
-      wx.setStorageSync(key, { text: this.data.note, kind: 'daily', images: [], date });
+      wx.setStorageSync(key, { text: this.data.note, kind: 'daily', images: [], date, baseDate: date, dateManual: true,
+        proposals: [{ content: this.data.note, date, at: '', planned: false, card: null }], newTypes: [], knownTypes: [] });
       wx.reLaunch({ url: '/pages/index/index?date=' + date });
     } catch (err) { this.setData({ error: '草稿保存失败，请重试' }); }
   },
-  onOpen(e) { wx.navigateTo({ url: '/pages/index/index?date=' + encodeURIComponent(e.currentTarget.dataset.date) }); },
+  onOpen(e) { wx.navigateTo({ url: '/pages/edit/edit?readonly=1&id=' + encodeURIComponent(e.currentTarget.dataset.id) }); },
+  goPhotos() { wx.navigateTo({ url: '/pages/photos/photos' }); },
+  goFirsts() { wx.navigateTo({ url: '/pages/search/search?kind=first' }); },
+  reviewMonth() {
+    wx.navigateTo({ url: '/pages/assistant/assistant?prompt=' + encodeURIComponent('整理' + this.data.month + '的成长故事，回顾重要变化并引用原文') });
+  },
   goFavorites() { wx.navigateTo({ url: '/pages/library/library' }); },
   goMonth() { wx.navigateTo({ url: '/pages/search/search?month=' + this.data.month }); },
   onPreview(e) { wx.previewImage({ current: e.currentTarget.dataset.src, urls: this.data.summary.photos }); },

@@ -4,6 +4,8 @@ const crypto = require('crypto');
 const { BUILTIN_TYPES, CARD_PROMPT, validateCard } = require('./cards');
 const assistant = require('./assistant');
 const prompts = require('./prompts');
+const speech = require('./speech');
+const viewStore = require('./views');
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
@@ -369,6 +371,11 @@ async function mutateEntry(member, event, rebuildCard = false) {
     }
     fields = { content: event.content.trim(), note: event.note.trim(),
       happened_on: event.happened_on, kind: event.kind };
+    if (event.images !== undefined) {
+      if (!Array.isArray(event.images) || event.images.length > 9 || new Set(event.images).size !== event.images.length
+        || event.images.some((image) => typeof image !== 'string' || image.length > 500)) return { ok: false, error: '照片列表无效' };
+      fields.images = event.images;
+    }
     if (event.smartInput === 1) {
       if (event.at !== '' && !validTime(event.at) || typeof event.planned !== 'boolean') return { ok: false, error: '时间或计划状态无效' };
       Object.assign(fields, { at: event.at, planned: event.planned, time_confirmed: true });
@@ -397,12 +404,22 @@ async function mutateEntry(member, event, rebuildCard = false) {
       if (doc.deleted_at) return { ok: false, error: '记录已在回收站，请先恢复' };
       if (event.action === 'favorite') patch = { favorite: event.favorite };
       else {
-        if (!fields.content && !(doc.images || []).length) return { ok: false, error: '内容为空' };
+        if (fields.images) {
+          for (const image of fields.images) {
+            if ((doc.images || []).includes(image)) continue;
+            const match = /^cloud:\/\/([^/]+)\/entries\/([^/]+)\/[a-zA-Z0-9_.-]+$/.exec(image);
+            if (!match || match[1].split('.')[0] !== cloud.getWXContext().ENV || match[2] !== member.family_code) {
+              return { ok: false, error: '新照片不属于当前家庭或环境' };
+            }
+          }
+        }
+        if (!fields.content && !(fields.images || doc.images || []).length) return { ok: false, error: '内容为空' };
         patch = fields;
       }
       if (!rebuildCard && event.action === 'update' && (fields.content !== doc.content || fields.happened_on !== doc.happened_on
         || event.smartInput === 1 && fields.at !== (doc.at || ''))) patch.card = null;
-      if (Object.keys(patch).every((key) => (key === 'card' ? JSON.stringify(orderedCard(doc.card || null)) === JSON.stringify(orderedCard(patch.card))
+      if (Object.keys(patch).every((key) => (key === 'images' ? JSON.stringify(doc.images || []) === JSON.stringify(patch.images)
+        : key === 'card' ? JSON.stringify(orderedCard(doc.card || null)) === JSON.stringify(orderedCard(patch.card))
         : (typeof patch[key] === 'boolean' ? doc[key] === true : doc[key] || '') === patch[key]))) {
         return { ok: true, revision: version };
       }
@@ -411,9 +428,13 @@ async function mutateEntry(member, event, rebuildCard = false) {
       return { ok: false, code: 'CONFLICT', error: '记录已被更新，请重新读取后再操作' };
     }
     if (event.action === 'update' && patch.card) {
-      if ((doc.card ? patch.card.type !== doc.card.type : !rebuildCard || !BUILTIN_TYPES.includes(patch.card.type)) || patch.card.related.some((link) =>
-        !(doc.card && doc.card.related || []).some((old) => old.id === link.id && old.revision === link.revision))) {
+      if (!rebuildCard && ((doc.card ? patch.card.type !== doc.card.type : true) || patch.card.related.some((link) =>
+        !(doc.card && doc.card.related || []).some((old) => old.id === link.id && old.revision === link.revision)))) {
         return { ok: false, error: '编辑不能新增类型或关联，请在首页重新识别' };
+      }
+      if (rebuildCard) {
+        const additions = await prepareCards(transaction, member, [{ card: patch.card }], event.approvedTypes);
+        for (const addition of additions) await addition.ref.set({ data: addition.data });
       }
     }
     patch = Object.assign({}, patch, { revision: version + 1, updated_at: Date.now() });
@@ -442,7 +463,34 @@ exports.main = async (event) => {
   if (!member) return { ok: false, error: '还没有加入家庭' };
 
   if (action === 'capabilities') {
-    return { ok: true, idempotentAdd: true, softDeleteOnly: true, recordTools: 1, smartInput: 1, dynamicCards: 1, assistant: 1, promptSettings: 1 };
+    return { ok: true, idempotentAdd: true, softDeleteOnly: true, recordTools: 1, smartInput: 1, dynamicCards: 1, assistant: 1, promptSettings: 1, cardPresentation: 1, editRebuild: 1, entryPhotos: 1, cloudViews: 1, speechToText: speech.configured() ? 1 : 0 };
+  }
+
+  if (action === 'getViews' || action === 'saveViews') {
+    try { return await viewStore.handle(db, member, event, nowCN()); }
+    catch (err) { return { ok: false, error: err.message || '关注项同步失败' }; }
+  }
+
+  if (action === 'transcribe') {
+    try {
+      if (!['owner', 'editor'].includes(member.role)) throw new Error('只读成员不能录入语音');
+      if (!speech.configured()) throw new Error('语音转文字尚未开通，请管理员配置语音服务');
+      speech.audioData(event.audio);
+      // 全小程序共享保守上限；失败也计次，避免不确定结果的重试突破调用预算。
+      const month = nowCN().slice(0, 7);
+      try { await db.createCollection('entry_speech_usage'); }
+      catch (err) { if (!String(err.errCode).includes('502002') && !/exist|已存在/i.test(err.message || err.errMsg || '')) throw err; }
+      await db.runTransaction(async (transaction) => {
+        const usageRef = transaction.collection('entry_speech_usage').doc(month);
+        const { data: usage } = await usageRef.get();
+        if (usage && (!Number.isSafeInteger(usage.count) || usage.count < 0)) throw new Error('语音额度状态异常，请联系管理员');
+        const count = usage ? usage.count : 0;
+        if (count >= 1000) throw new Error('本月小程序语音额度已用完，请使用文字记录');
+        if (usage) await usageRef.update({ data: { count: count + 1 } });
+        else await usageRef.set({ data: { count: 1 } });
+      });
+      return Object.assign({ ok: true }, await speech.transcribe(event.audio));
+    } catch (err) { return { ok: false, error: err.message || '语音转文字失败，请重试' }; }
   }
 
   if (['getPromptSettings', 'getMaintenanceRules', 'savePromptSettings'].includes(action)) {
@@ -537,7 +585,7 @@ exports.main = async (event) => {
         types = await readTypes(member.family_code);
         const recent = await db.collection(ENTRIES).where({ family_code: member.family_code, deleted_at: null })
           .orderBy('created_at', 'desc').orderBy('_id', 'desc').limit(12).get();
-        context = recent.data.map((row) => ({ id: row._id, revision: revision(row), date: row.happened_on,
+        context = recent.data.filter((row) => row._id !== event.excludeId).map((row) => ({ id: row._id, revision: revision(row), date: row.happened_on,
           at: row.at || '', planned: row.planned === true, content: String(row.content || '').slice(0, 200),
           type: row.card && row.card.type || '' }));
         input.recentEntries = context;

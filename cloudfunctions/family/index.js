@@ -186,7 +186,7 @@ exports.main = async (event) => {
       .orderBy('created_at', 'asc')
       .limit(100)
       .get();
-    return { ok: true, list: res.data, meId: me._id };
+    return { ok: true, list: res.data.map(({ assistant_views, assistant_views_revision, ...publicMember }) => publicMember), meId: me._id };
   }
 
   if (action === 'createInvite') {

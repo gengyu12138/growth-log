@@ -20,6 +20,22 @@ function saveView(wx, member, plan) {
   if (views.length >= 20) throw new Error('最多保存20个视图，请先移除不需要的视图');
   views.push(item); wx.setStorageSync(storageKey(member), views); return views;
 }
+function acceptCloudViews(wxApi, member, result) {
+  if (!result || !Array.isArray(result.views) || !Number.isSafeInteger(result.revision) || result.revision < 0
+    || !result.member || result.member._id !== member._id || result.member.family_code !== member.family_code) throw new Error('云端关注项身份或格式异常');
+  const key = storageKey(member), local = readViews(wxApi, member);
+  const synced = Number.isSafeInteger(wxApi.getStorageSync(key + ':revision'));
+  const signature = (v) => JSON.stringify([v.intent, v.title, v.window, v.types, v.keywords, v.fields]);
+  const views = result.views.slice();
+  if (!synced) {
+    for (const view of local) if (!views.some((v) => signature(v) === signature(view))) views.push(view);
+  }
+  if (views.length > 20) throw new Error('本机与云端合计超过20个关注项，请先整理后同步');
+  const migration = views.length !== result.views.length;
+  wxApi.setStorageSync(key, views);
+  if (!migration) wxApi.setStorageSync(key + ':revision', result.revision);
+  return { views, migration };
+}
 function match(row, plan) {
   return !row.deleted_at && !row.planned && row.happened_on >= plan.start && row.happened_on <= plan.end
     && (!plan.types.length && !plan.keywords.length || plan.types.includes(row.card && row.card.type)
@@ -72,4 +88,4 @@ async function report(app, plan, member, cancelled) {
     days: new Set(current.map((r) => r.happened_on)).size, previousDays: new Set(previous.map((r) => r.happened_on)).size,
     metrics: combined, rows: current, previousRows: previous };
 }
-module.exports = { storageKey, readViews, saveView, report };
+module.exports = { storageKey, readViews, saveView, acceptCloudViews, report };

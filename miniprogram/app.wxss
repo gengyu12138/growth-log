@@ -1,22 +1,18 @@
-/* ── 设计令牌 ─────────────────────────────────────────
-   毛玻璃：浅灰蓝画布 + 漂移光斑（见 components/backdrop）
-   卡片是真实的半透明白玻璃，模糊 + 高光边 + 内描边
-   文字用 iOS 三级灰，主色是一枚柔和的玫瑰红
-   ──────────────────────────────────────────────────── */
+/* 青绿色与纸白内容层；优先保证正文和控件可读。 */
 
 page {
   --ink: #1c1c1e;
-  --ink-2: #6e6e73;
-  --ink-3: #86868b;
+  --ink-2: #52695e;
+  --ink-3: #5b7065;
 
   --glass: rgba(255, 255, 255, 0.58);
   --glass-soft: rgba(255, 255, 255, 0.42);
   --glass-strong: rgba(255, 255, 255, 0.82);
-  --glass-line: rgba(255, 255, 255, 0.72);
-  --glass-line-2: rgba(255, 255, 255, 0.45);
+  --glass-line: #d7e4dc;
+  --glass-line-2: #d7e4dc;
 
-  --primary: #0e9187;
-  --primary-dim: #0b8078;
+  --primary: #096f60;
+  --primary-dim: #075c4f;
   --primary-soft: rgba(14, 145, 135, 0.12);
   --primary-line: rgba(14, 145, 135, 0.36);
 
@@ -27,7 +23,7 @@ page {
   --r-md: 24rpx;
   --r-lg: 34rpx;
 
-  /* 页面样式沿用旧变量名，统一映射到毛玻璃这套 */
+  /* 保留既有页面的变量名，统一到青绿色主题。 */
   --paper: #eef5f5;
   --card: rgba(255, 255, 255, 0.55);
   --card-2: rgba(255, 255, 255, 0.45);
@@ -82,56 +78,16 @@ view, text, input, textarea, image, scroll-view, button {
 }
 
 .t-micro {
-  font-size: 22rpx;
+  font-size: 26rpx;
   line-height: 1.45;
   color: var(--ink-3);
 }
 
-/* ── 玻璃 ───────────────────────────────────────────
-   三层阴影缺一不可，这是"看起来像玻璃"的判据：
-     ① 顶边高光 inset，光从左上打过来
-     ② 直接阴影：紧贴、短、略深
-     ③ 环境阴影：散开、宽、很浅
-   模糊只给"外壳"层（日历、输入条、底栏、落地页卡片），
-   内容列表用半透明实色，同屏真模糊不超过 2 处。
-   ──────────────────────────────────────────────────── */
-
-/* 内容卡片：半透明实色，不做实时模糊 */
-.surface {
-  background: rgba(255, 255, 255, 0.74);
-  border: 1rpx solid rgba(255, 255, 255, 0.82);
+.surface, .surface-lit, .surface-soft {
+  background: #ffffff;
+  border: 1rpx solid #dce7e2;
   border-radius: var(--r-lg);
-  box-shadow:
-    0 1rpx 2rpx rgba(31, 41, 55, 0.055),
-    0 10rpx 30rpx rgba(31, 41, 55, 0.07),
-    inset 0 1rpx 0 rgba(255, 255, 255, 0.92);
-}
-
-/* 外壳玻璃：真模糊。只给数量可控的大面用 */
-.surface-lit {
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(18px) saturate(170%);
-  -webkit-backdrop-filter: blur(18px) saturate(170%);
-  border: 1rpx solid rgba(255, 255, 255, 0.78);
-  border-radius: var(--r-lg);
-  box-shadow:
-    0 1rpx 2rpx rgba(31, 41, 55, 0.05),
-    0 16rpx 52rpx rgba(31, 41, 55, 0.1),
-    inset 0 1rpx 0 rgba(255, 255, 255, 0.96);
-}
-
-/* 不支持实时模糊时退回不透明，不能塌成透明色块 */
-@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
-  .surface-lit {
-    background: rgba(255, 255, 255, 0.94);
-  }
-}
-
-.surface-soft {
-  background: rgba(255, 255, 255, 0.5);
-  border: 1rpx solid rgba(255, 255, 255, 0.62);
-  border-radius: var(--r-md);
-  box-shadow: inset 0 1rpx 0 rgba(255, 255, 255, 0.8);
+  box-shadow: none;
 }
 
 /* ── 按钮 ─────────────────────────────────────────── */
@@ -155,7 +111,7 @@ view, text, input, textarea, image, scroll-view, button {
 .btn::after { border: none; }
 
 .btn-primary {
-  background: linear-gradient(180deg, #17a89d 0%, #0b8078 100%);
+  background: #096f60;
   color: #ffffff;
   box-shadow: 0 10rpx 26rpx rgba(14, 145, 135, 0.3);
 }
@@ -167,9 +123,7 @@ view, text, input, textarea, image, scroll-view, button {
 }
 
 .btn-ghost {
-  background: var(--glass-soft);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: #f7faf8;
   color: var(--ink-2);
   border: 1rpx solid var(--glass-line);
   font-weight: 500;
@@ -202,7 +156,7 @@ view, text, input, textarea, image, scroll-view, button {
 
 .field-label {
   display: block;
-  font-size: 23rpx;
+  font-size: 26rpx;
   font-weight: 500;
   color: var(--ink-3);
   letter-spacing: 1rpx;
@@ -213,9 +167,7 @@ view, text, input, textarea, image, scroll-view, button {
   width: 100%;
   height: 94rpx;
   padding: 0 26rpx;
-  background: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: #f7faf8;
   border: 1rpx solid var(--glass-line);
   border-radius: var(--r-md);
   color: var(--ink);
@@ -244,30 +196,7 @@ view, text, input, textarea, image, scroll-view, button {
   margin: 40rpx 0;
 }
 
-/* ── 入场动效 ─────────────────────────────────────── */
-
-@keyframes glass-rise {
-  from {
-    opacity: 0;
-    transform: translateY(14rpx) scale(0.988);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.rise {
-  animation: glass-rise 380ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
-}
-
-.rise-2 {
-  animation: glass-rise 380ms cubic-bezier(0.22, 0.61, 0.36, 1) 80ms both;
-}
-
-.rise-3 {
-  animation: glass-rise 380ms cubic-bezier(0.22, 0.61, 0.36, 1) 160ms both;
-}
+.rise, .rise-2, .rise-3 { animation: none; }
 
 /* 月份翻页：整块侧向滑入 */
 @keyframes flip-left {
@@ -300,39 +229,8 @@ view, text, input, textarea, image, scroll-view, button {
   animation: flip-right 340ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 
-/* 选中日：按下再回弹 */
-@keyframes seal-pop {
-  0% {
-    transform: scale(0.8);
-  }
-  58% {
-    transform: scale(1.08);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-/* 记录条目：掀起一角落定 */
-@keyframes entry-in {
-  from {
-    opacity: 0;
-    transform: translateY(20rpx) scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* 呼吸 */
-@keyframes breathe {
-  0%, 100% {
-    opacity: 0.32;
-    transform: scale(0.94);
-  }
-  50% {
-    opacity: 0.85;
-    transform: scale(1.06);
-  }
-}
+/* 原生按钮默认宽度优先级较高，页面按钮显式遵循布局宽度。 */
+page button.btn { width: 100%; max-width: none; }
+page button.btn-text { width: auto; min-width: 0; }
+.btn-text { min-height: 80rpx; }
+.ph { color: #63766b; }

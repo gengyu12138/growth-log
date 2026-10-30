@@ -27,6 +27,7 @@
 }
 
 .search-input {
+  width:100%;
   height: 84rpx;
   padding: 0 30rpx;
   background: var(--card);
@@ -35,6 +36,7 @@
   color: var(--ink);
   font-size: 29rpx;
 }
+.clear{min-width:88rpx;min-height:88rpx;margin-left:16rpx}
 
 .result-list {
   display: flex;
@@ -121,3 +123,5 @@
 
 .filters { padding: 16rpx 24rpx; margin: 24rpx 0; font-size: 26rpx; }
 .filter-row { display: flex; justify-content: space-between; align-items: center; padding: 12rpx 0; gap: 20rpx; }
+
+.search-row button.clear{flex:0 0 88rpx;width:88rpx;min-width:0;max-width:88rpx;margin:0 0 0 16rpx}

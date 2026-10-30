@@ -1,6 +1,7 @@
 <backdrop /><navbar title="成长回顾" back />
 <view class="page page-root">
   <view class="tabs surface"><button class="tab {{tab === 'memories' ? 'active' : ''}}" data-tab="memories" bindtap="onTab">成长回忆</button><button class="tab {{tab === 'summary' ? 'active' : ''}}" data-tab="summary" bindtap="onTab">月度小结</button><button class="tab {{tab === 'statistics' ? 'active' : ''}}" data-tab="statistics" bindtap="onTab">数据统计</button></view>
+  <view class="stat-windows"><button class="btn-text" bindtap="goPhotos">照片回忆</button><button class="btn-text" bindtap="goFirsts">全部第一次</button><button class="btn-text" bindtap="goFavorites">珍藏时刻</button></view>
   <picker wx:if="{{tab === 'summary'}}" mode="date" fields="month" value="{{month}}" bindchange="onMonth"><view class="field-input month">{{month}} · 选择月份</view></picker>
   <view wx:if="{{tab === 'statistics'}}" class="stat-range">
     <view class="stat-windows"><button class="btn-text" data-window="today" bindtap="onStatWindow">今天</button><button class="btn-text" data-window="week" bindtap="onStatWindow">近7天</button><button class="btn-text" data-window="month" bindtap="onStatWindow">本月</button></view>
@@ -17,7 +18,7 @@
       <view wx:for="{{group.metrics}}" wx:for-item="metric" wx:for-index="mi" wx:key="index" class="metric">
         <text>{{metric.label}} · {{metric.count}} 次有数值记录</text>
         <text wx:if="{{metric.additive}}" class="stat-value">合计 {{metric.total}} {{metric.unit}}</text>
-        <text wx:else class="stat-value">最近 {{metric.latest}} {{metric.unit}}</text>
+        <block wx:else><text class="stat-value">最近 {{metric.latest}} {{metric.unit}}</text><text class="t-small">{{metric.latestDate}}{{metric.previous !== null ? ' · 上一次 ' + metric.previous + ' ' + metric.unit : ' · 暂无上次测量可比较'}}</text><view class="measure-points"><text wx:for="{{metric.points}}" wx:key="index" wx:for-item="point">{{point.date}} · {{point.value}}{{metric.unit}}</text></view></block>
         <text class="t-micro">平均 {{metric.average}} · 最小 {{metric.min}} · 最大 {{metric.max}} {{metric.unit}}</text>
         <button class="btn-text" data-group="{{gi}}" data-metric="{{mi}}" bindtap="showSources">查看数值与原文依据</button>
       </view>
@@ -26,21 +27,21 @@
   <block wx:if="{{!loading && !error && tab === 'memories'}}">
     <view wx:for="{{groups}}" wx:key="date" class="surface card">
       <text class="t-h2">{{item.label}} · {{item.date}}</text>
-      <view wx:for="{{item.entries}}" wx:for-item="entry" wx:key="_id" class="memory" data-date="{{entry.happened_on}}" bindtap="onOpen"><text class="record-text">{{entry.content || '照片记录'}}</text><text class="t-micro">{{entry.images.length || 0}} 张照片 · 查看当天</text></view>
+      <view wx:for="{{item.entries}}" wx:for-item="entry" wx:key="_id" class="memory" data-id="{{entry._id}}" bindtap="onOpen"><text class="date">{{entry.happened_on}}</text><text class="record-text">{{entry.content || '照片记录'}}</text><text class="t-micro">{{entry.images.length || 0}} 张照片 · 查看原记录</text></view>
     </view>
-    <view wx:if="{{milestones.length}}" class="surface card"><text class="t-h2">近期收藏的成长时刻</text><view wx:for="{{milestones}}" wx:key="_id" class="memory" data-date="{{item.happened_on}}" bindtap="onOpen"><text class="date">{{item.happened_on}}</text><text class="record-text">{{item.content || '照片记录'}}</text></view></view>
+    <view wx:if="{{milestones.length}}" class="surface card"><text class="t-h2">近期第一次与珍藏</text><view wx:for="{{milestones}}" wx:key="_id" class="memory" data-id="{{item._id}}" bindtap="onOpen"><text class="date">{{item.happened_on}}</text><text class="record-text">{{item.content || '照片记录'}}</text></view></view>
     <text wx:if="{{!groups.length && !milestones.length}}" class="intro">这几个回忆日期还没有记录，继续积累就会在这里遇见过去。</text>
-    <button class="btn-text" bindtap="goFavorites">查看全部里程碑收藏</button>
+    <button class="btn-text" bindtap="goFavorites">查看全部珍藏</button>
   </block>
   <view wx:if="{{!loading && !error && tab === 'summary' && summary}}" class="surface card">
     <text class="t-h2">{{month}} · {{summary.count}} 条记录</text>
     <text class="intro">记录 {{summary.days}} 天 · 第一次 {{summary.firstCount}} 条 · 收藏 {{summary.favoriteCount}} 条 · 照片 {{summary.photoCount}} 张</text>
     <text wx:if="{{!summary.count}}" class="intro">这个月还没有记录。</text>
-    <view wx:for="{{summary.highlights}}" wx:key="_id" class="memory" data-date="{{item.happened_on}}" bindtap="onOpen"><text class="date">{{item.happened_on}}</text><text class="record-text">{{item.content || '照片记录'}}</text></view>
+    <view wx:for="{{summary.highlights}}" wx:key="_id" class="memory" data-id="{{item._id}}" bindtap="onOpen"><text class="date">{{item.happened_on}}</text><text class="record-text">{{item.content || '照片记录'}}</text></view>
     <view class="images"><image wx:for="{{summary.photos}}" wx:key="*this" src="{{item}}" mode="aspectFill" lazy-load data-src="{{item}}" bindtap="onPreview" /></view>
     <text wx:if="{{summary.photoCount > 12}}" class="t-micro">展示前 12 张照片，其余可在本月记录中查看。</text>
     <button class="btn-text" bindtap="goMonth">查看本月全部记录</button>
-    <block wx:if="{{summary.count}}"><text class="field-label">月记草稿 · 最多 500 字</text><textarea class="field-input note" value="{{note}}" maxlength="500" disabled="{{!canEdit}}" bindinput="onNote" /><text class="t-micro">{{noteStatus}}</text><button wx:if="{{canEdit}}" class="btn btn-primary" bindtap="toDraft">带到首页草稿</button><text class="t-micro">带入后仍需点击“记下”才会保存为新记录。</text></block>
+    <block wx:if="{{summary.count}}"><button class="btn btn-ghost" bindtap="reviewMonth">让 AI 整理本月成长故事</button><text class="field-label">月记草稿 · 最多 500 字</text><textarea class="field-input note" value="{{note}}" maxlength="500" disabled="{{!canEdit}}" bindinput="onNote" /><text class="t-micro">{{noteStatus}}</text><button wx:if="{{canEdit}}" class="btn btn-primary" bindtap="toDraft">带到首页草稿</button><text class="t-micro">带入后仍需点击“记下”才保存。默认作为回顾原文，不重复抽取数值；修改正文后请再次检查卡片。</text></block>
   </view>
   <view wx:if="{{sourceTitle}}" class="source-overlay">
     <view class="surface source-panel">
@@ -56,3 +57,5 @@
     </view>
   </view>
 </view>
+
+<app-tabs active="growth" disabled="{{false}}" />

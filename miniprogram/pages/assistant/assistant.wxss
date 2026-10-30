@@ -10,3 +10,7 @@
 .trend-row { display: flex; align-items: center; gap: 16rpx; margin: 12rpx 0; font-size: 23rpx; }
 .trend-track { flex: 1; height: 14rpx; background: var(--primary-soft); border-radius: 7rpx; }
 .trend-bar { height: 100%; background: var(--primary); border-radius: 7rpx; }
+
+.page{padding-bottom:calc(160rpx + env(safe-area-inset-bottom))}
+
+.task-grid{display:flex;flex-wrap:wrap;gap:14rpx;margin:24rpx 0}.task-grid button.task{width:calc((100% - 14rpx)/2);max-width:none;min-width:0;flex:0 0 calc((100% - 14rpx)/2);min-height:100rpx;padding:20rpx 16rpx;margin:0;background:#edf5ef;border-radius:16rpx;color:#245844;font-size:27rpx;line-height:1.5;display:flex;align-items:center;justify-content:center}.task::after{border:0}

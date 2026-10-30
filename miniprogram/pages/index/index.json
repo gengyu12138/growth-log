@@ -3,7 +3,9 @@
   "enablePullDownRefresh": false,
   "usingComponents": {
     "backdrop": "/components/backdrop/backdrop",
-    "smart-card": "/components/smart-card/smart-card"
+    "smart-card": "/components/smart-card/smart-card",
+    "record-card": "/components/record-card/record-card",
+    "app-tabs": "/components/app-tabs/app-tabs"
   },
   "navigationStyle": "custom"
 }

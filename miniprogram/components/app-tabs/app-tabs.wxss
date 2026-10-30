@@ -1,0 +1,41 @@
+.tabs {
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:0;
+  z-index:30;
+  display:flex;
+  background:#fff;
+  border-top:1rpx solid #d7e4dc;
+  padding-bottom:env(safe-area-inset-bottom);
+  min-height:100rpx
+}
+
+.tabs.flow {
+  position:relative
+}
+
+.tab {
+  flex:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:100rpx;
+  margin:0;
+  padding:12rpx 0;
+  border-radius:0;
+  background:transparent;
+  color:#52695e;
+  font-size:28rpx;
+  line-height:1.5
+}
+
+.tab::after {
+  border:0
+}
+
+.tab.active {
+  color:#096f60;
+  font-weight:600;
+  background:#f2f8f4
+}

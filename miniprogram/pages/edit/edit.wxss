@@ -7,3 +7,6 @@
 .images { display: flex; flex-wrap: wrap; gap: 14rpx; margin: 24rpx 0; }
 .images image { width: 160rpx; height: 160rpx; border-radius: 16rpx; }
 .btn-primary { margin-top: 32rpx; }
+.reading-date{display:block;font-size:28rpx;color:var(--ink-2);margin-bottom:20rpx}.images>view{width:calc((100% - 14rpx)/2)}.images image{width:100%;height:220rpx}.images .btn-text{font-size:24rpx;min-height:70rpx}
+
+.stale{padding:20rpx;margin:24rpx 0}.stale-text{display:block;font-size:29rpx;line-height:1.7;white-space:pre-wrap}

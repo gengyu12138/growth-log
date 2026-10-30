@@ -65,8 +65,13 @@ function fmtTime(ts) {
 }
 
 function recordedTimeLabel(ts) {
-  if (!Number.isFinite(ts) || !Number.isFinite(new Date(ts).getTime())) return '未记录具体时刻';
+  if (!Number.isFinite(ts) || !Number.isFinite(new Date(ts).getTime())) return '时间待核对';
   return `记录于 ${fmtDate(new Date(ts))} ${fmtTime(ts)}`;
+}
+
+function entryTime(entry) {
+  if (/^([01]\d|2[0-3]):[0-5]\d$/.test(entry.at || '')) return entry.at;
+  return Number.isFinite(entry.created_at) && Number.isFinite(new Date(entry.created_at).getTime()) ? fmtTime(entry.created_at) : '';
 }
 
 function daysBetween(a, b) {
@@ -112,6 +117,7 @@ module.exports = {
   fmtDayHead,
   fmtTime,
   recordedTimeLabel,
+  entryTime,
   monthTitle,
   buildCalendar,
   daysBetween,

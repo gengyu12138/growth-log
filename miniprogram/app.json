@@ -8,10 +8,11 @@
     "pages/library/library",
     "pages/growth/growth",
     "pages/assistant/assistant",
-    "pages/ai-settings/ai-settings"
+    "pages/ai-settings/ai-settings",
+    "pages/photos/photos"
   ],
   "window": {
-    "backgroundColor": "#f7f4ec",
+    "backgroundColor": "#eef5f5",
     "backgroundTextStyle": "dark",
     "navigationBarBackgroundColor": "#f7f4ec",
     "navigationBarTitleText": "",
@@ -20,5 +21,10 @@
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json",
-  "lazyCodeLoading": "requiredComponents"
+  "lazyCodeLoading": "requiredComponents",
+  "permission": {
+    "scope.record": {
+      "desc": "将你主动录制的语音转成文字并整理成长记录，检查后才保存"
+    }
+  }
 }

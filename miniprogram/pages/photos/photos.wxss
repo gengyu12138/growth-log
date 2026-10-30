@@ -1,0 +1,62 @@
+.page {
+  padding:24rpx 28rpx calc(60rpx + env(safe-area-inset-bottom))
+}
+
+.month {
+  margin-top:36rpx
+}
+
+.grid {
+  display:flex;
+  flex-wrap:wrap;
+  gap:16rpx;
+  margin-top:20rpx
+}
+
+.photo {
+  width:calc((100% - 16rpx)/2);
+  background:#fff;
+  border-radius:18rpx;
+  overflow:hidden
+}
+
+.photo image {
+  width:100%;
+  height:300rpx;
+  background:#e4ede7
+}
+
+.photo>text {
+  display:block;
+  padding:12rpx 16rpx 0;
+  font-size:25rpx;
+  color:#52695e
+}
+
+.caption {
+  display:block;
+  width:100%;
+  margin:0;
+  min-height:88rpx;
+  padding:12rpx 16rpx;
+  background:transparent;
+  font-size:27rpx;
+  line-height:1.55;
+  text-align:left;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  color:#233d34
+}
+
+.caption::after {
+  border:0
+}
+
+.empty {
+  display:block;
+  padding:80rpx 8rpx;
+  font-size:29rpx;
+  line-height:1.8;
+  color:#52695e
+}

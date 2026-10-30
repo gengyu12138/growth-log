@@ -59,9 +59,17 @@ function editField(card, index, value, remove) {
     field.value = field.numeric && value.trim() && Number.isFinite(Number(value)) ? Number(value) : value;
     field.manual = true;
   }
-  return Object.assign({}, card, { fields });
+  const updated = Object.assign({}, card, { fields });
+  if (updated.presentation) updated.presentation = Object.assign({}, updated.presentation, {
+    primary: fields.some((f) => f.label === updated.presentation.primary) ? updated.presentation.primary : '',
+    layout: updated.presentation.layout === 'metrics' && !fields.some((f) => typeof f.value === 'number') ? 'list' : updated.presentation.layout,
+  });
+  return updated;
 }
 function clearInterval(card) {
-  return card && card.interval ? Object.assign({}, card, { interval: null, fields: card.fields.filter((field) => !field.computed) }) : card;
+  if (!card || !card.interval) return card;
+  const result = Object.assign({}, card, { interval: null, fields: card.fields.filter((field) => !field.computed) });
+  if (result.presentation) result.presentation = Object.assign({}, result.presentation, { layout: 'list', primary: '' });
+  return result;
 }
 module.exports = { statistics, editField, clearInterval };

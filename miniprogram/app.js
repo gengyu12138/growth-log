@@ -126,6 +126,7 @@ App({
       const err = new Error(r && r.error === 'unknown action' ? '此功能尚未启用，请联系管理员'
         : (r && r.error) || '请求失败，请重试');
       err.code = r && r.code;
+      err.definite = !!r && r.ok === false;
       throw err;
     }
     return r;

@@ -2,15 +2,17 @@
 <view class="page page-root">
   <view class="surface card">
     <text class="t-h2">说说你想看什么、关注什么或纠正什么</text>
+    <view class="task-grid"><button wx:for="{{tasks}}" wx:key="*this" class="task" disabled="{{busy || saving || pending}}" data-index="{{index}}" bindtap="chooseTask">{{item}}</button></view>
     <text class="intro">例如：这周喝奶和睡觉怎么样；持续关注辅食与反应；刚睡醒；刚才那条改为150毫升；整理学会爬的过程；这周和上周比一比。</text>
     <textarea class="field-input request" value="{{request}}" maxlength="-1" disabled="{{saving || pending}}" bindinput="onInput" placeholder="描述你的需求，助手自动选择呈现方式" />
     <text class="t-micro">{{request.length}} / 500 · 修改记录前会展示对照并再次确认</text>
-    <button class="btn btn-primary" disabled="{{busy || saving || pending}}" bindtap="generate">{{busy ? '正在生成…' : '生成 / 重新识别'}}</button>
+    <button class="btn btn-primary" disabled="{{busy || saving || pending}}" bindtap="generate">{{busy ? '正在生成…' : '查看整理结果'}}</button>
   </view>
   <view wx:if="{{views.length}}" class="surface card">
-    <text class="t-h2">本机保存的看板与追踪</text>
-    <view wx:for="{{views}}" wx:key="index" class="saved-row"><button class="btn-text" data-index="{{index}}" disabled="{{busy || saving || pending}}" bindtap="openView">{{item.title}}</button><button class="btn-text" data-index="{{index}}" disabled="{{busy || saving || pending}}" bindtap="removeView">移除视图</button></view>
+    <text class="t-h2">我的关注与追踪</text>
+    <view wx:for="{{views}}" wx:key="index" class="saved-row"><button class="btn-text" data-index="{{index}}" disabled="{{busy || saving || pending}}" bindtap="openView">{{item.title}}</button><button class="btn-text" data-index="{{index}}" disabled="{{busy || saving || pending || viewsLoading}}" bindtap="removeView">移除视图</button></view>
   </view>
+<text class="intro">{{viewStatus}}</text><view wx:if="{{cloudViews}}" class="saved-row"><button class="btn-text" disabled="{{busy || saving || pending || viewsLoading}}" bindtap="syncViews">同步关注项</button><button class="btn-text" disabled="{{busy || saving || pending || viewsLoading}}" bindtap="reloadViews">重新读取云端</button></view>
   <text class="msg-error" selectable>{{error}}</text><text class="intro">{{status}}</text>
   <view wx:if="{{plan}}" class="surface card">
     <text class="t-h2">{{plan.title}}</text><text class="intro">{{plan.start}} 至 {{plan.end}}</text>
@@ -20,7 +22,7 @@
       <view class="chips"><text wx:for="{{plan.types}}" wx:key="*this" class="chip">类型：{{item}}</text><text wx:for="{{plan.keywords}}" wx:key="*this" class="chip">关键词：{{item}}</text></view>
       <view wx:if="{{plan.fields.length}}" class="chips"><text class="t-small">关注字段：</text><text wx:for="{{plan.fields}}" wx:key="*this" class="chip">{{item}}</text></view>
       <text wx:if="{{plan.intent === 'tracker'}}" class="intro">保存后，未来符合这些规则的记录自动纳入；首页识别也会参考关注字段。仅抽取原文已提供的信息。</text>
-      <button wx:if="{{report}}" class="btn-text" disabled="{{busy || saving}}" bindtap="saveView">保存这个{{plan.intent === 'tracker' ? '追踪' : '看板'}}到本机</button>
+      <button wx:if="{{report}}" class="btn-text" disabled="{{busy || saving || viewsLoading}}" bindtap="saveView">保存这个{{plan.intent === 'tracker' ? '追踪' : '看板'}}</button>
     </block>
     <block wx:if="{{plan.intent === 'clarify' || plan.intent === 'correct' || plan.question}}">
       <text class="intro">{{plan.question || '请核对候选记录，选择要修改的一条。'}}{{!plan.candidates.length ? ' 可补充日期、时间或原文帮助定位。' : ''}}</text>
@@ -86,3 +88,5 @@
     </view><button wx:if="{{sources.length < sourceTotal}}" class="btn-text" bindtap="moreSources">继续查看</button></scroll-view>
   </view></view>
 </view>
+
+<app-tabs active="assistant" disabled="{{busy || saving || pending}}" />

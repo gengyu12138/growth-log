@@ -4,7 +4,8 @@ const { recordedTimeLabel } = require('../../utils/date');
 Page({
   data: { request: '', answer: '', busy: false, saving: false, error: '', status: '', plan: null, report: null,
     chapters: [], storyTotal: 0, storyConsidered: 0, views: [], canEdit: false, selected: -1,
-    sources: [], sourceTitle: '', sourceTotal: 0, pending: false },
+    sources: [], sourceTitle: '', sourceTotal: 0, pending: false, cloudViews: false, viewsLoading: false, viewStatus: '',
+    tasks: ['回顾本月的重要变化', '整理学走路的过程', '对比这周和上周的记录', '持续关注辅食与反应'] },
   onLoad(options) { this.setData({ request: options.prompt || '' }); this.init(!!options.prompt); },
   onUnload() { this.version = (this.version || 0) + 1; this.disposed = true; },
   async init(generate) {
@@ -14,6 +15,7 @@ Page({
       if (this.disposed) return;
       this.member = member;
       this.setData({ views: helper.readViews(wx, member), canEdit: ['owner', 'editor'].includes(member.role) });
+      await this.reloadViews();
       if (generate) await this.generate();
     } catch (err) { if (!this.disposed) this.setData({ error: err.message }); }
   },
@@ -63,17 +65,66 @@ Page({
     const view = this.data.views[Number(e.currentTarget.dataset.index)];
     if (view) this.generate(null, view);
   },
-  saveView() {
-    if (this.data.busy || this.data.error || !this.data.plan || !this.member) return;
-    try { this.setData({ views: helper.saveView(wx, this.member, this.data.plan), status: '已保存到本机，按当前账号和家庭隔离；打开时重新读取记录' }); }
-    catch (err) { this.setData({ error: err.message }); }
-  },
-  removeView(e) {
-    if (this.data.busy || this.data.saving || this.data.pending) return;
+  async reloadViews() {
+    if (this.data.viewsLoading || this.data.busy || this.data.saving || this.data.pending) return;
+    this.setData({ viewsLoading: true });
     try {
-      const views = helper.readViews(wx, this.member).filter((_, i) => i !== Number(e.currentTarget.dataset.index));
-      wx.setStorageSync(helper.storageKey(this.member), views); this.setData({ views });
-    } catch (err) { this.setData({ error: err.message }); }
+      const caps = await app.getEntryCapabilities();
+      if (this.disposed) return;
+      this.setData({ cloudViews: caps.cloudViews === 1 });
+      if (caps.cloudViews !== 1) { this.setData({ viewStatus: '当前关注项仅保存在本机；云端同步需更新云函数' }); return; }
+      const r = await app.entryRequest({ action: 'getViews' });
+      if (this.disposed) return;
+      if (!Array.isArray(r.views) || !Number.isSafeInteger(r.revision) || !r.member || r.member._id !== this.member._id || r.member.family_code !== this.member.family_code) throw new Error('关注项返回异常');
+      this.viewsRevision = r.revision;
+      const merged = helper.acceptCloudViews(wx, this.member, r);
+      this.setData({ views: merged.views, viewStatus: merged.migration ? '已保留本机旧关注项，点击同步后可在其他设备使用' : '已读取云端关注项，按账号与家庭隔离' });
+    } catch (err) { if (!this.disposed) this.setData({ viewStatus: '云端读取失败：' + err.message }); }
+    finally { if (!this.disposed) this.setData({ viewsLoading: false }); }
+  },
+  async storeViews(views) {
+    if (this.data.cloudViews) {
+      if (!Number.isSafeInteger(this.viewsRevision)) throw new Error('请先重新读取云端关注项');
+      const r = await app.entryRequest({ action: 'saveViews', views, revision: this.viewsRevision,
+        memberId: this.member._id, familyCode: this.member.family_code });
+      if (!Number.isSafeInteger(r.revision) || !Array.isArray(r.views)) throw new Error('云端保存结果异常，请重新读取核对');
+      this.viewsRevision = r.revision; views = r.views;
+      wx.setStorageSync(helper.storageKey(this.member) + ':revision', r.revision);
+    }
+    wx.setStorageSync(helper.storageKey(this.member), views);
+    if (!this.disposed) this.setData({ views, viewStatus: this.data.cloudViews ? '已同步到云端，其他设备可读取' : '仅保存在本机，云端尚未启用同步' });
+  },
+  async saveView() {
+    if (this.data.busy || this.data.saving || this.data.viewsLoading || this.data.error || !this.data.plan || !this.member) return;
+    this.setData({ saving: true });
+    try {
+      const plan = this.data.plan;
+      const view = { intent: plan.intent, title: plan.title, window: plan.window, types: plan.types, keywords: plan.keywords,
+        fields: plan.fields, warning: '', question: '', candidates: [] };
+      const views = this.data.views.slice();
+      if (!views.some((v) => JSON.stringify(v) === JSON.stringify(view))) views.push(view);
+      if (views.length > 20) throw new Error('最多保存20个关注项');
+      await this.storeViews(views);
+    } catch (err) { if (!this.disposed) this.setData({ viewStatus: err.message }); }
+    finally { if (!this.disposed) this.setData({ saving: false }); }
+  },
+  async syncViews() {
+    if (this.data.busy || this.data.saving || this.data.pending || this.data.viewsLoading || !this.data.cloudViews) return;
+    this.setData({ saving: true });
+    try { await this.storeViews(this.data.views); }
+    catch (err) { if (!this.disposed) this.setData({ viewStatus: err.message }); }
+    finally { if (!this.disposed) this.setData({ saving: false }); }
+  },
+  async removeView(e) {
+    if (this.data.busy || this.data.saving || this.data.pending || this.data.viewsLoading) return;
+    this.setData({ saving: true });
+    try { await this.storeViews(this.data.views.filter((_, i) => i !== Number(e.currentTarget.dataset.index))); }
+    catch (err) { if (!this.disposed) this.setData({ viewStatus: err.message }); }
+    finally { if (!this.disposed) this.setData({ saving: false }); }
+  },
+  chooseTask(e) {
+    if (this.data.busy || this.data.saving || this.data.pending) return;
+    this.onInput({ detail: { value: this.data.tasks[Number(e.currentTarget.dataset.index)] } }); this.generate();
   },
   selectCandidate(e) {
     if (this.data.busy || this.data.saving || this.data.pending || !this.data.plan) return;

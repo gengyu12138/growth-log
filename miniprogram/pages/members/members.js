@@ -4,6 +4,7 @@ const ROLE_LABEL = { owner: '管理员', editor: '可写', viewer: '只读' };
 
 Page({
   data: {
+    showProfile: false, advanced: false,
     members: [],
     isOwner: false,
     myRoleLabel: '',
@@ -19,6 +20,9 @@ Page({
     today: '',
   },
 
+  toggleProfile() { this.setData({ showProfile: !this.data.showProfile }); },
+  toggleAdvanced() { this.setData({ advanced: !this.data.advanced }); },
+  goLibrary() { wx.navigateTo({ url: '/pages/library/library' }); },
   onShow() {
     this.load();
   },

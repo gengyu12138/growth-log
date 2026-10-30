@@ -2,14 +2,16 @@ const app = getApp();
 const dateUtil = require('../../utils/date');
 const { backupPhotos } = require('../../utils/backup');
 const config = require('../../utils/config');
+const { growthBook } = require('../../utils/book');
 const ACTIONS = { add: '新增了记录', update: '编辑了记录', remove: '将记录移入回收站',
   restore: '恢复了记录', favorite: '更新了里程碑收藏', tag: '触发了自动整理' };
 
 Page({
   data: { tab: 'favorites', rows: [], loading: false, busy: false, error: '', hasMore: false,
     canEdit: false, month: '', exportAll: false, exportStatus: '', exportPath: '',
+    bookOnly: false, exportFormats: ['完整数据备份（JSON）', '可阅读成长册（HTML）'], formatIndex: 0,
     withPhotos: false, photoStart: '', photoEnd: '',
-    tabs: [{ key: 'favorites', label: '里程碑' }, { key: 'trash', label: '回收站' },
+    tabs: [{ key: 'favorites', label: '珍藏' }, { key: 'trash', label: '回收站' },
       { key: 'history', label: '操作记录' }, { key: 'export', label: '导出' }] },
 
   onLoad() { this.setData({ month: dateUtil.fmtDate(new Date()).slice(0, 7) }); },
@@ -66,13 +68,14 @@ Page({
   more() { this.load(true); },
   onMonth(e) { if (!this.data.busy) this.setData({ month: e.detail.value }); },
   onExportAll(e) { if (!this.data.busy) this.setData({ exportAll: e.detail.value }); },
+  onFormat(e) { if (!this.data.busy) this.setData({ formatIndex: Number(e.detail.value), bookOnly: Number(e.detail.value) === 1 }); },
   onWithPhotos(e) { if (!this.data.busy) this.setData({ withPhotos: e.detail.value }); },
   onPhotoStart(e) { if (!this.data.busy) this.setData({ photoStart: e.detail.value }); },
   onPhotoEnd(e) { if (!this.data.busy) this.setData({ photoEnd: e.detail.value }); },
   clearPhotoDates() { if (!this.data.busy) this.setData({ photoStart: '', photoEnd: '' }); },
   cancelExport() { this.exportCancelled = true; this.setData({ exportStatus: '正在取消，等待当前文件处理结束…' }); },
   onOpen(e) {
-    wx.navigateTo({ url: '/pages/index/index?date=' + encodeURIComponent(e.currentTarget.dataset.date) });
+    wx.navigateTo({ url: '/pages/edit/edit?readonly=1&id=' + encodeURIComponent(e.currentTarget.dataset.id) });
   },
   onPreview(e) { wx.previewImage({ current: e.currentTarget.dataset.src, urls: e.currentTarget.dataset.images }); },
 
@@ -111,7 +114,7 @@ Page({
       let rows = await app.collectEntries(all ? {} : { month }, this.member.family_code, cancelled,
         (count) => this.setData({ exportStatus: '已读取 ' + count + ' 条…' }));
       if (withPhotos) rows = rows.filter((e) => (!start || e.happened_on >= start) && (!end || e.happened_on <= end));
-      const fileName = '成长记录-' + (all ? '全部' : month) + '-' + Date.now() + (withPhotos ? '.zip' : '.json');
+      const fileName = '成长记录-' + (all ? '全部' : month) + '-' + Date.now() + (withPhotos ? '.zip' : this.data.bookOnly ? '.html' : '.json');
       filePath = wx.env.USER_DATA_PATH + '/' + fileName;
       const payload = { format: 'growth-log-v1', exportedAt: new Date().toISOString(),
         scope: all ? 'all-active' : month, count: rows.length,
@@ -124,7 +127,7 @@ Page({
           (exportStatus) => { if (!this.closed) this.setData({ exportStatus }); });
         photoCount = result.count;
       } else {
-        await new Promise((resolve, reject) => fs.writeFile({ filePath, data: JSON.stringify(payload, null, 2), encoding: 'utf8', success: resolve, fail: reject }));
+        await new Promise((resolve, reject) => fs.writeFile({ filePath, data: this.data.bookOnly ? growthBook(rows, (all ? '家庭' : month) + '成长回忆') : JSON.stringify(payload, null, 2), encoding: 'utf8', success: resolve, fail: reject }));
       }
       if (cancelled()) throw new Error('已取消备份');
       const previous = this.data.exportPath;

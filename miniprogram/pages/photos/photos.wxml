@@ -1,0 +1,18 @@
+<backdrop /><navbar title="照片回忆" back />
+<view class="page page-root">
+  <text class="t-small">照片按记录月份整理，每张都能回到当时的故事。</text>
+  <view wx:for="{{groups}}" wx:key="month" wx:for-item="group" wx:for-index="gi" class="month">
+    <text class="t-h2">{{group.month}} · {{group.photos.length}} 张</text>
+    <view class="grid">
+      <view wx:for="{{group.photos}}" wx:key="src" class="photo">
+        <image src="{{item.src}}" mode="aspectFill" lazy-load data-group="{{gi}}" data-src="{{item.src}}" bindtap="preview" />
+        <text>{{item.date}}</text>
+        <button class="caption" data-id="{{item.id}}" bindtap="open">{{item.text}}</button>
+      </view>
+    </view>
+  </view>
+  <text wx:if="{{!groups.length && !loading && !error}}" class="empty">{{hasMore ? '当前读取范围还没有照片，可以继续查找更早的记录。' : '还没有照片。可以在记录详情中补充照片，和家人一起留住当时的样子。'}}</text>
+  <text wx:if="{{loading}}" class="t-small">正在读取照片记录…</text>
+  <text class="msg-error">{{error}}</text>
+  <button wx:if="{{(hasMore || error) && !loading}}" class="btn btn-ghost" bindtap="load">{{error ? '重试读取' : '查看更早的照片'}}</button>
+</view>

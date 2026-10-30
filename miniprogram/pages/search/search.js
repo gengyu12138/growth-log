@@ -33,6 +33,7 @@ Page({
     }
 
     if (q) this.setData({ q });
+    if (options && options.kind === 'first') this.setData({ kindIndex: 2 });
     if (options && /^\d{4}-(0[1-9]|1[0-2])$/.test(options.month || '')) this.setData({ month: options.month });
     this.init();
   },
@@ -112,6 +113,7 @@ Page({
   onConfirm() {
     this.run(this.data.q);
   },
+  clearQuery() { clearTimeout(this.timer); this.setData({ q: '' }); this.run(''); },
 
   onMonth(e) { this.setData({ month: e.detail.value }); this.init(); },
   clearMonth() { this.setData({ month: '' }); this.init(); },
@@ -143,8 +145,8 @@ Page({
   },
 
   onOpen(e) {
-    const date = e.currentTarget.dataset.date;
-    wx.reLaunch({ url: `/pages/index/index?date=${date}` });
+    const id = e.currentTarget.dataset.id;
+    if (id) wx.navigateTo({ url: '/pages/edit/edit?readonly=1&id=' + encodeURIComponent(id) });
   },
 
   onBack() {

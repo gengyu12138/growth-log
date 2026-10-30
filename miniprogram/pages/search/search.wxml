@@ -15,6 +15,7 @@
         focus="{{false}}"
       />
     </view>
+    <button wx:if="{{q}}" class="btn-text clear" bindtap="clearQuery">清空</button>
   </view>
 
   <view class="filters surface">
@@ -41,7 +42,7 @@
       wx:for="{{results}}"
       wx:key="_id"
       class="result surface"
-      data-date="{{item.happened_on}}"
+      data-id="{{item._id}}"
       bindtap="onOpen"
     >
       <view class="result-head">

@@ -2,29 +2,39 @@
 <navbar title="{{readOnly ? '记录原文' : '编辑记录'}}" back />
 <view class="page page-root">
   <text wx:if="{{loading}}" class="t-small">正在读取记录…</text>
-  <view wx:if="{{!loading && entryLoaded}}" class="surface form">
+  <block wx:if="{{!loading && entryLoaded && readOnly}}">
     <text wx:if="{{sourceWarning}}" class="msg-error">{{sourceWarning}}</text>
-    <smart-card card="{{card}}" editable="{{canEdit && cardsSupported}}" disabled="{{busy}}" bind:fieldchange="onCardField" bind:unlink="onCardUnlink" />
-    <button wx:if="{{canEdit && cardsSupported && card}}" class="btn-text" disabled="{{busy}}" bindtap="onRemoveCard">移除卡片，保留原文</button>
-    <text wx:if="{{canEdit && card}}" class="t-micro">修改正文或发生日期/时间会清除旧卡片，避免统计继续使用过期信息。</text>
+    <text class="reading-date">{{date}}</text><record-card entry="{{readingEntry}}" reading />
+    <button wx:if="{{mayEdit}}" class="btn btn-ghost" bindtap="beginEdit">编辑这条记录</button>
+  </block>
+  <view wx:if="{{!loading && entryLoaded && !readOnly}}" class="surface form">
+    <text wx:if="{{sourceWarning}}" class="msg-error">{{sourceWarning}}</text>
+<view wx:if="{{staleDraft}}" class="surface stale"><text class="field-label">本机旧草稿 · 请与下方最新记录核对</text><text class="stale-text" selectable>{{staleDraft.content}}</text><button class="btn-text" bindtap="useStaleDraft">载入旧草稿继续编辑</button><button class="btn-text" bindtap="discardStaleDraft">保留最新记录，丢弃旧草稿</button></view>
+    <smart-card card="{{card}}" editable="{{canEdit && cardsSupported}}" disabled="{{busy || pending || analyzing || staleDraft}}" bind:fieldchange="onCardField" bind:unlink="onCardUnlink" />
+    <button wx:if="{{canEdit && cardsSupported && card}}" class="btn-text" disabled="{{busy || pending || analyzing || staleDraft}}" bindtap="onRemoveCard">移除卡片，保留原文</button>
+    <text class="t-micro">{{dirty ? '编辑草稿保存在本机，确认保存后才修改原记录' : '修改后可以重新整理卡片，手选日期和时间优先'}}</text>
+    <text wx:if="{{pending}}" class="msg-error">上次保存结果待确认，输入已锁定；请核对原记录或用同一份修改重试。</text>
     <text class="field-label">记录日期</text>
-    <picker mode="date" value="{{date}}" disabled="{{busy || !canEdit}}" bindchange="onDate"><view class="field-input picker">{{date}}</view></picker>
+    <picker mode="date" value="{{date}}" disabled="{{busy || pending || analyzing || staleDraft || !canEdit}}" bindchange="onDate"><view class="field-input picker">{{date}}</view></picker>
     <block wx:if="{{smartSupported}}">
       <text class="field-label">事件时间{{canEdit ? ' · 手动修改后以此为准' : ''}}</text>
-      <picker mode="time" value="{{at || '08:00'}}" disabled="{{busy || !canEdit}}" bindchange="onTime"><view class="field-input picker">{{at || '原记录保存时间'}}</view></picker>
+      <picker mode="time" value="{{at || fallbackTime || '08:00'}}" disabled="{{busy || pending || analyzing || staleDraft || !canEdit}}" bindchange="onTime"><view class="field-input picker">{{at || (fallbackTime ? fallbackTime + ' · 记录时间' : '时间待核对')}}</view></picker>
       <text class="field-label">尚未发生的计划{{canEdit ? '（完成后可关闭）' : ''}}</text>
-      <switch checked="{{planned}}" disabled="{{busy || !canEdit}}" bindchange="onPlanned" color="#0e9187" />
+      <switch checked="{{planned}}" disabled="{{busy || pending || analyzing || staleDraft || !canEdit}}" bindchange="onPlanned" color="#0e9187" />
     </block>
     <text class="field-label">分类</text>
-    <picker range="{{kinds}}" value="{{kindIndex}}" disabled="{{busy || !canEdit}}" bindchange="onKind"><view class="field-input picker">{{kinds[kindIndex]}}</view></picker>
+    <picker range="{{kinds}}" value="{{kindIndex}}" disabled="{{busy || pending || analyzing || staleDraft || !canEdit}}" bindchange="onKind"><view class="field-input picker">{{kinds[kindIndex]}}</view></picker>
     <text class="field-label">记录正文 · 最多 500 字</text>
-    <textarea class="field-input body" value="{{content}}" maxlength="-1" disabled="{{busy || !canEdit}}" bindinput="onContent" />
+    <textarea class="field-input body" value="{{content}}" maxlength="-1" disabled="{{busy || pending || analyzing || staleDraft || !canEdit}}" bindinput="onContent" />
+    <button wx:if="{{canEdit && cardsSupported}}" class="btn btn-ghost" disabled="{{busy || analyzing || pending || staleDraft}}" bindtap="reanalyze">{{analyzing ? '正在整理…' : '根据当前原文重新整理卡片'}}</button>
+    <text wx:if="{{analysisStatus}}" class="t-small">{{analysisStatus}}</text>
     <text wx:if="{{content.length >= 450}}" class="t-micro">{{content.length}} / 500{{content.length > 500 ? ' · 已保留全部原文，请缩短' : ''}}</text>
     <text class="field-label">备注 · 最多 200 字</text>
-    <textarea class="field-input note" value="{{note}}" maxlength="200" disabled="{{busy || !canEdit}}" bindinput="onNote" />
-    <view wx:if="{{images.length}}" class="images"><image wx:for="{{images}}" wx:key="*this" src="{{item}}" mode="aspectFill" data-src="{{item}}" bindtap="onPreview" /></view>
-    <text wx:if="{{canEdit}}" class="t-micro">原有图片保留。保存时会检查是否有家人更新了这条记录。</text>
-    <button wx:if="{{canEdit}}" class="btn btn-primary" disabled="{{busy || conflict}}" bindtap="onSave">{{busy ? '保存中…' : '保存修改'}}</button>
+    <textarea class="field-input note" value="{{note}}" maxlength="200" disabled="{{busy || pending || analyzing || staleDraft || !canEdit}}" bindinput="onNote" />
+    <view wx:if="{{images.length}}" class="images"><view wx:for="{{images}}" wx:key="*this"><image src="{{item}}" mode="aspectFill" data-src="{{item}}" bindtap="onPreview" /><button wx:if="{{canEdit && photosSupported}}" class="btn-text" disabled="{{busy || pending || analyzing || staleDraft}}" data-index="{{index}}" bindtap="removePhoto">移出这条记录</button></view></view>
+    <button wx:if="{{canEdit && images.length < 9}}" class="btn btn-ghost" disabled="{{busy || pending || analyzing || staleDraft}}" bindtap="addPhotos">补充照片</button>
+    <text wx:if="{{canEdit}}" class="t-micro">保存时检查记录版本。移出照片只改变本条引用，不删除云端照片文件。</text>
+    <button wx:if="{{canEdit}}" class="btn btn-primary" disabled="{{busy || conflict || analyzing || staleDraft}}" bindtap="onSave">{{busy ? '保存中…' : pending ? '核对并重试同一份修改' : '检查完成，保存修改'}}</button>
   </view>
   <text wx:if="{{!loading && !canEdit && !readOnly && !error}}" class="t-small">只读成员不能编辑记录。</text>
   <text class="msg-error" selectable>{{error}}</text>

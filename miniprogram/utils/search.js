@@ -7,7 +7,7 @@ function tokenize(q) {
   return String(q)
     .replace(/[，。？！、,.?!\s]+/g, ' ')
     .split(' ')
-    .filter((w) => w.length >= 2);
+    .filter(Boolean);
 }
 
 function search(entries, query) {

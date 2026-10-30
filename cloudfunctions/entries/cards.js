@@ -1,6 +1,7 @@
 const BUILTIN_TYPES = ['日常', '喂养', '睡眠', '测量', '健康', '里程碑'];
 const CARD_PROMPT = [
   '在每个 event 增加 card，可为 null。card 格式：{"type":"喂养","fields":[{"label":"奶量","value":120,"unit":"毫升","evidence":"喝了120毫升"}],"interval":null,"related":[]}。',
+  '可增加 presentation:{"layout":"metrics","title":"喝了120毫升","primary":"奶量"}，按内容动态组织卡片。layout只能为story（日常文字）、metrics（测量/数量）、interval（起止区间）、milestone（第一次/成长节点）、health（健康事实）、list（多项描述）。title为当前content中连续摘取的24字以内短句；primary为已有字段label或空字符串。缺少相应内容时省略presentation，不编造标题、图片、数值、图表或医学判断。',
   '自动选择合适的卡片类型，优先复用 recordTypes 的名称和字段名称；内置类型为日常、喂养、睡眠、测量、健康、里程碑。确无合适类型可提出简短新名称如“刷牙”，不要把不同日期、数量或人名当作新类型。',
   '每张卡最多6个字段，label最多12字，value只能是数字或60字以内的纯文本，unit最多8字，无单位为空字符串；evidence必须是当前事件原文中的连续片段。只抽取原文明示事实，不编造缺失值，不复制旧记录的数量或健康状态。',
   '原文中的累计、汇总、均值、目标值用文本字段保留，不作为本次单次事件的数值，以免与已有单条记录重复计数。',
@@ -55,6 +56,18 @@ function validateCard(card, content, fromModel = false) {
     ids.add(item.id);
     return { id: item.id, revision: item.revision, reason: item.reason };
   });
-  return { type: card.type, fields, interval, related };
+  const result = { type: card.type, fields, interval, related };
+  if (card.presentation !== undefined) {
+    const p = card.presentation;
+    if (!p || !['story', 'metrics', 'interval', 'milestone', 'health', 'list'].includes(p.layout)
+      || typeof p.title !== 'string' || p.title.length > 24 || p.title && !content.includes(p.title)
+      || typeof p.primary !== 'string' || p.primary && !fields.some((f) => f.label === p.primary)
+      || p.layout === 'interval' && !interval
+      || p.layout === 'metrics' && !fields.some((f) => typeof f.value === 'number')) {
+      throw new Error('卡片布局与原文或字段不符，请重新识别');
+    }
+    result.presentation = { layout: p.layout, title: p.title, primary: p.primary };
+  }
+  return result;
 }
 module.exports = { BUILTIN_TYPES, CARD_PROMPT, validateCard };

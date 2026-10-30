@@ -120,3 +120,5 @@
   margin-left: 6rpx;
   font-size: 25rpx;
 }
+
+.mode-tabs{display:flex;justify-content:space-around;gap:24rpx;margin-bottom:24rpx}.invite-card{background:#fff;backdrop-filter:none;-webkit-backdrop-filter:none}.brand{margin-bottom:44rpx}.brand-rule{animation:none}

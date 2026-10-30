@@ -214,3 +214,7 @@
 .profile .field-label { margin-top: 22rpx; }
 .profile-date { display: flex; align-items: center; }
 .profile .t-micro { display: block; margin: 20rpx 0; }
+
+.page{padding-bottom:calc(160rpx + env(safe-area-inset-bottom))}
+
+.settings-links{display:flex;flex-direction:column;gap:18rpx;margin-bottom:28rpx}.settings-links .btn{width:100%}

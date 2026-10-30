@@ -1,4 +1,5 @@
 const { createZip, utf8 } = require('./zip');
+const { growthBook } = require('./book');
 
 function fileCall(fs, method, options) {
   return new Promise((resolve, reject) => fs[method](Object.assign({}, options, { success: resolve, fail: reject })));
@@ -40,6 +41,7 @@ async function backupPhotos(wxApi, filePath, payload, familyCode, envId, cancell
     const manifest = Object.assign({}, payload, { format: 'growth-log-photo-backup-v1', files,
       imageNotice: 'photos 目录保留云端照片文件，不再次压缩。历史上传前已压缩的照片无法还原为相机原图。' });
     await zip.add('records.json', utf8(JSON.stringify(manifest, null, 2)));
+    await zip.add('growth-book.html', utf8(growthBook(payload.entries, '家庭成长回忆', files)));
     const bytes = await zip.finish(); check();
     return { count: files.length, bytes };
   } catch (err) {

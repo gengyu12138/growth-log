@@ -1,6 +1,7 @@
 const dateUtil = require('../../utils/date');
 const { editField, clearInterval } = require('../../utils/cards');
-const { readViews } = require('../../utils/assistant');
+const { readViews, acceptCloudViews } = require('../../utils/assistant');
+const { createVoice } = require('../../utils/voice');
 
 const app = getApp();
 
@@ -40,7 +41,8 @@ Page({
     loadError: '',
     monthAnim: '',
     today: '',
-    viewMode: 'calendar',
+    viewMode: 'timeline',
+    composerOpen: false, advanced: false, editingCardIndex: -1, showPlans: false, recording: false, transcribing: false, voiceStatus: '', voiceRetry: false, voiceStarting: false,
     timeline: [],
     statusBar: 20,
     barHeight: 44,
@@ -51,6 +53,11 @@ Page({
 
   onLoad(options) {
     this.disposed = false;
+    this.voice = createVoice(this, async (text) => {
+      const combined = [this.data.text.trim(), text].filter(Boolean).join('\n');
+      this.onText({ detail: { value: combined } });
+      if (combined.length <= 500) await this.recognize();
+    });
     let statusBar = 20;
     let barHeight = 44;
     try {
@@ -81,6 +88,7 @@ Page({
 
   onUnload() {
     this.disposed = true;
+    if (this.voice) this.voice.dispose();
     this.analysisVersion = (this.analysisVersion || 0) + 1;
     this.persistDraft();
     this.initId = (this.initId || 0) + 1;
@@ -90,6 +98,7 @@ Page({
   },
 
   onHide() {
+    if ((this.data.recording || this.data.voiceStarting) && this.voice) this.voice.cancel();
     this.persistDraft();
   },
 
@@ -118,11 +127,11 @@ Page({
       this.pendingSave = pending && pending.familyCode === member.family_code ? pending : null;
       const patch = { canEdit: member.role === 'owner' || member.role === 'editor' };
       if (firstLoad) { this.resetRecognition(); this.aiStates = {}; }
-      if (firstLoad) Object.assign(patch, { viewMode: member.role === 'viewer' ? 'timeline' : 'calendar',
+      if (firstLoad) Object.assign(patch, { viewMode: 'timeline',
         text: '', images: [], kind: 'daily', draftDate: '', draftBaseDate: '', draftStatus: '', draftAt: '', dateManual: false, timeManual: false, planned: false, planManual: false, savePending: false, saveRetrySafe: false });
       if (this.pendingSave) {
         Object.assign(patch, {
-          text: pending.content, images: pending.images, kind: pending.kind,
+          text: pending.content, images: pending.images, kind: pending.kind, composerOpen: true,
           selectedDate: pending.happened_on, savePending: true, saveRetrySafe: pending.retrySafe === true,
           draftDate: pending.happened_on, draftBaseDate: pending.happened_on, draftAt: pending.at || '', planned: pending.planned === true,
           analysisEvents: pending.items || [],
@@ -145,7 +154,7 @@ Page({
             patch.recognitionStatus = '已恢复手动调整的拆分草稿，请检查后保存';
             this.analysisText = draft.text.trim(); this.analyzedAt = Date.now(); this.proposalEdited = true;
           }
-          Object.assign(patch, { text: draft.text, images, kind: draft.kind,
+          Object.assign(patch, { text: draft.text, images, kind: draft.kind, composerOpen: true,
             draftDate: draft.date, draftBaseDate: draft.baseDate || draft.date, draftAt: draft.at || '', dateManual: draft.dateManual === true,
             timeManual: draft.timeManual === true, planned: draft.planned === true, planManual: draft.planManual === true, draftStatus: images.length === draft.images.length
               ? '已恢复本机草稿' : '已恢复文字，部分图片已失效，请重新选择' });
@@ -264,7 +273,8 @@ Page({
     const counts = {};
     let monthCount = 0;
 
-    for (const e of this.all) {
+    const visibleRows = this.all.filter((e) => this.data.showPlans ? e.planned === true : !e.planned);
+    for (const e of visibleRows) {
       if (e.happened_on && e.happened_on.slice(0, 7) === monthKey) {
         counts[e.happened_on] = (counts[e.happened_on] || 0) + 1;
         monthCount += 1;
@@ -275,7 +285,7 @@ Page({
       c ? { day: c.day, date: c.date, count: counts[c.date] || 0 } : null
     ));
 
-    const entries = this.all.map((e) => Object.assign({}, e, {
+    const entries = visibleRows.map((e) => Object.assign({}, e, {
       aiLabel: e.manually_edited ? '' : this.aiStates && Object.prototype.hasOwnProperty.call(this.aiStates, e._id) ? this.aiStates[e._id] : (e.ai_status === 'pending' ? '已保存 · 标签待整理，点此重试' : ''),
       ageLabel: this.profile ? dateUtil.ageLabel(this.profile.birthday, e.happened_on) : '',
     }));
@@ -285,7 +295,7 @@ Page({
       .filter((e) => e.happened_on === this.data.selectedDate)
       .sort(byEventTime) : [];
 
-    const total = this.all.length;
+    const total = visibleRows.length;
 
     // 时间轴：按日期倒序分组，只保留有记录的日子
     const bucket = {};
@@ -354,12 +364,31 @@ Page({
   onPickDay(e) {
     const date = e.currentTarget.dataset.date;
     if (!date) return;
-    const patch = { selectedDate: date };
-    if (!this.data.text && !this.data.images.length && !this.data.busy && !this.data.savePending) {
-      Object.assign(patch, { draftDate: date, draftBaseDate: date, dateManual: true });
-    }
-    this.setData(patch, () => this.render());
+    this.setData({ selectedDate: date }, () => this.render());
   },
+
+  startVoice() { if (!this.data.busy && !this.data.savePending && !this.data.voiceStarting) this.voice.start(); },
+  stopVoice() { this.voice.stop(); },
+  cancelVoice() { this.voice.cancel(); },
+  retryVoice() { if (!this.data.busy && !this.data.savePending && !this.data.recording && !this.data.voiceStarting && this.data.canEdit) this.voice.retry(); },
+  openComposer(e) {
+    if (!this.data.canEdit || this.data.busy) return;
+    const date = e && e.currentTarget.dataset.date;
+    const patch = { composerOpen: true };
+    if (!this.data.text && !this.data.images.length && !this.data.savePending) {
+      Object.assign(patch, { draftDate: date || this.data.today, draftBaseDate: date || this.data.today, dateManual: !!date });
+    }
+    this.setData(patch);
+  },
+  closeComposer() { if (!this.data.busy && !this.data.savePending && !this.data.recording && !this.data.transcribing && !this.data.voiceStarting) { this.persistDraft(); this.setData({ composerOpen: false }); } },
+  toggleAdvanced() { this.setData({ advanced: !this.data.advanced }); },
+  toggleCardEditor(e) { const index = Number(e.currentTarget.dataset.index); this.setData({ editingCardIndex: this.data.editingCardIndex === index ? -1 : index }); },
+  togglePlans() { this.setData({ showPlans: !this.data.showPlans }, () => this.render()); },
+  goToday() {
+    this.month = dateUtil.startOfMonth(new Date());
+    this.setData({ selectedDate: this.data.today }); this.reload();
+  },
+  goPhotos() { wx.navigateTo({ url: '/pages/photos/photos' }); },
 
   onKind(e) {
     if (this.data.busy || this.data.savePending || !this.data.canEdit) return;
@@ -383,7 +412,7 @@ Page({
 
   onText(e) {
     if (this.data.busy || this.data.savePending) return;
-    const baseDate = this.data.text ? this.data.draftBaseDate || this.data.selectedDate : this.data.selectedDate;
+    const baseDate = this.data.draftBaseDate || this.data.draftDate || this.data.today;
     this.resetRecognition();
     this.setData({ text: e.detail.value, draftBaseDate: baseDate,
       draftDate: this.data.dateManual ? this.data.draftDate : baseDate,
@@ -477,8 +506,14 @@ Page({
       try {
         const caps = await app.getEntryCapabilities();
         if (caps.smartInput !== 1) throw new Error('智能识别尚未启用，请手动检查');
+        let views = readViews(wx, this.member);
+        if (caps.cloudViews === 1) {
+          const saved = await app.entryRequest({ action: 'getViews' });
+          if (!current()) return false;
+          views = acceptCloudViews(wx, this.member, saved).views;
+        }
         const r = await app.entryRequest({ action: 'analyze', content: text, selectedDate: date, cards: caps.dynamicCards === 1 ? 1 : undefined,
-          assistant: caps.assistant === 1 ? 1 : undefined, trackers: caps.assistant === 1 ? readViews(wx, this.member).filter((v) => v.intent === 'tracker') : undefined });
+          assistant: caps.assistant === 1 ? 1 : undefined, trackers: caps.assistant === 1 ? views.filter((v) => v.intent === 'tracker') : undefined });
         if (!current()) return false;
         if (r.assistantIntent && r.assistantIntent !== 'record') {
           this.setData({ assistantIntent: r.assistantIntent, analysisEvents: [], recognitionStatus: '这是助手请求，请打开智能助手检查结果', recognitionWarning: '' });
@@ -537,26 +572,27 @@ Page({
 
   clearDraft() {
     if (!this.draftKey) return;
+    if (this.voice) this.voice.reset();
     const draft = wx.getStorageSync(this.draftKey);
     wx.removeStorageSync(this.draftKey);
     for (const path of (draft && draft.images) || []) {
       wx.removeSavedFile({ filePath: path, fail: () => {} });
     }
     this.resetRecognition();
-    this.setData({ draftDate: '', draftBaseDate: '', draftStatus: '', draftAt: '', dateManual: false, timeManual: false, planned: false, planManual: false });
+    this.setData({ composerOpen: false, draftDate: '', draftBaseDate: '', draftStatus: '', draftAt: '', dateManual: false, timeManual: false, planned: false, planManual: false });
   },
 
   discardDraft() {
-    if (this.data.busy || this.data.savePending || this.data.pickingImages) return;
+    if (this.data.busy || this.data.savePending || this.data.pickingImages || this.data.recording || this.data.transcribing || this.data.voiceStarting) return;
     wx.showModal({ title: '清除本机草稿？', content: '未提交的文字和图片将被清除。', success: (r) => {
-      if (!r.confirm || this.data.busy || this.data.savePending || this.data.pickingImages) return;
+      if (!r.confirm || this.data.busy || this.data.savePending || this.data.pickingImages || this.data.recording || this.data.transcribing || this.data.voiceStarting) return;
       this.clearDraft();
       this.setData({ text: '', images: [], kind: 'daily' });
     } });
   },
 
   async onPickImage() {
-    if (this.data.busy || this.data.savePending || this.data.pickingImages || !this.data.canEdit) return;
+    if (this.data.busy || this.data.savePending || this.data.pickingImages || this.data.recording || this.data.transcribing || !this.data.canEdit) return;
     const left = 9 - this.data.images.length;
     if (left <= 0) {
       wx.showToast({ title: '一次最多 9 张', icon: 'none' });
@@ -586,7 +622,7 @@ Page({
         // 临时图片重启后可能失效，先保存到本机，再把路径写入草稿。
         const saved = await new Promise((resolve, reject) => wx.saveFile({ tempFilePath: src, success: resolve, fail: reject }));
         this.setData({ images: this.data.images.concat(saved.savedFilePath),
-          draftDate: this.data.draftDate || this.data.selectedDate });
+          draftDate: this.data.draftDate || this.data.today });
         this.persistDraft();
       }
     } catch (err) {
@@ -612,7 +648,7 @@ Page({
   },
 
   async onSave() {
-    if (this.data.busy || this.data.pickingImages) return;
+    if (this.data.busy || this.data.pickingImages || this.data.recording || this.data.transcribing || this.data.voiceStarting) return;
     if (!this.data.canEdit && !this.pendingSave) return;
     const text = this.data.text.trim();
     const local = this.data.images.slice();

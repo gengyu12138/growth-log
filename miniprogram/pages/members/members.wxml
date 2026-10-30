@@ -6,7 +6,8 @@
     <text class="head-sub">{{members.length}} 人 · 你是{{myRoleLabel}}</text>
   </view>
 
-  <view class="profile surface">
+  <view class="settings-links"><button class="btn btn-ghost" bindtap="toggleProfile">宝宝档案</button><button class="btn btn-ghost" bindtap="goLibrary">珍藏、备份与回收站</button><button wx:if="{{isOwner}}" class="btn-text" bindtap="toggleAdvanced">{{advanced ? '收起高级设置' : '高级设置'}}</button></view>
+  <view wx:if="{{showProfile}}" class="profile surface">
     <text class="t-h2">宝宝档案</text>
     <text class="field-label">昵称</text>
     <input class="field-input" value="{{nickname}}" maxlength="20" disabled="{{!isOwner || profileBusy || !profileSupported}}" bindinput="onNickname" placeholder="宝宝的小名" />
@@ -18,7 +19,7 @@
     <button wx:if="{{profileError}}" class="btn-text" disabled="{{profileBusy}}" bindtap="reloadProfile">重新读取档案</button>
   </view>
 
-  <view wx:if="{{isOwner}}" class="profile surface">
+  <view wx:if="{{isOwner && advanced}}" class="profile surface">
     <text class="t-h2">AI 规则</text>
     <text class="t-micro">编辑记录、卡片、助手和项目维护规则，保存到云端并保留版本。</text>
     <button class="btn btn-primary" bindtap="openAiSettings">编辑 AI 规则</button>
@@ -90,3 +91,5 @@
 
   <text class="msg-error" bindtap="load">{{msg}}</text>
 </view>
+
+<app-tabs active="members" disabled="{{busy || profileBusy}}" />

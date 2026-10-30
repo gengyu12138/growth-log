@@ -2,6 +2,7 @@
   "navigationBarTitleText": "成长回顾",
   "usingComponents": {
     "backdrop": "/components/backdrop/backdrop",
-    "navbar": "/components/navbar/navbar"
+    "navbar": "/components/navbar/navbar",
+    "app-tabs": "/components/app-tabs/app-tabs"
   }
 }
