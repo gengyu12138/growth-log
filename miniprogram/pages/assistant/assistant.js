@@ -6,17 +6,28 @@ Page({
     chapters: [], storyTotal: 0, storyConsidered: 0, views: [], canEdit: false, selected: -1,
     sources: [], sourceTitle: '', sourceTotal: 0, pending: false, cloudViews: false, viewsLoading: false, viewStatus: '',
     tasks: ['回顾本月的重要变化', '整理学走路的过程', '对比这周和上周的记录', '持续关注辅食与反应'] },
-  onLoad(options) { this.setData({ request: options.prompt || '' }); this.init(!!options.prompt); },
+  onLoad(options) { this.initialPrompt = options.prompt || ''; },
+  onShow() { app.selectTab(this, 'assistant'); if (!this.data.busy && !this.data.saving && !this.data.pending) this.init(); },
   onUnload() { this.version = (this.version || 0) + 1; this.disposed = true; },
-  async init(generate) {
+  async init() {
     try {
       const member = await app.ensureMember();
       if (!member) throw new Error('请先加入家庭');
       if (this.disposed) return;
+      if (this.member && (this.member._id !== member._id || this.member.family_code !== member.family_code)) {
+        this.result = null; this.pendingCandidate = null;
+        this.setData({ request: '', answer: '', plan: null, report: null, chapters: [], views: [], sources: [], sourceTitle: '', selected: -1, status: '', error: '' });
+      }
       this.member = member;
+      const incoming = app.globalData.assistantPrompt;
+      if (incoming && (incoming.memberId !== member._id || incoming.familyCode !== member.family_code)) { app.globalData.assistantPrompt = null; throw new Error('家庭身份已变化，请重新提出整理需求'); }
+      const prompt = this.initialPrompt || incoming && incoming.text || '';
+      this.initialPrompt = '';
+      if (incoming) app.globalData.assistantPrompt = null;
+      if (prompt) this.onInput({ detail: { value: prompt } });
       this.setData({ views: helper.readViews(wx, member), canEdit: ['owner', 'editor'].includes(member.role) });
       await this.reloadViews();
-      if (generate) await this.generate();
+      if (prompt) await this.generate();
     } catch (err) { if (!this.disposed) this.setData({ error: err.message }); }
   },
   onInput(e) {

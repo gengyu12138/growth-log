@@ -1,5 +1,5 @@
 <template name="entryCard">
-  <record-card entry="{{item}}" can-edit="{{canEdit}}" data-id="{{item._id}}" bind:menu="onEntryMenu" />
+  <record-card entry="{{item}}" compact="{{compact}}" can-edit="{{canEdit}}" data-id="{{item._id}}" bind:menu="onEntryMenu" />
   <button wx:if="{{item.aiLabel}}" class="btn-text" data-id="{{item._id}}" bindtap="onRetryTag">{{item.aiLabel}}</button>
 </template>
 
@@ -92,15 +92,19 @@
 
       <view class="tl-body">
         <block wx:for="{{group.entries}}" wx:key="_id" wx:for-item="entry">
-          <template is="entryCard" data="{{item: entry, canEdit: canEdit}}" />
+          <view class="tl-item">
+            <view class="tl-time"><text>{{entry.timeLabel || '—'}}</text><text wx:if="{{!entry.fromText}}" class="tl-time-hint">记录</text></view>
+            <view class="tl-rail"><view class="tl-node tl-node-{{entry.kind}}"></view></view>
+            <view class="tl-card"><template is="entryCard" data="{{item: entry, canEdit: canEdit, compact: true}}" /></view>
+          </view>
         </block>
       </view>
     </view>
   </block>
 
   <view class="load-status">
-    <text wx:if="{{loading}}">正在读取记录…</text>
-    <block wx:elif="{{loadError}}">
+    <view wx:if="{{loading && !timeline.length && !dayEntries.length}}" class="initial-placeholder" aria-label="正在读取记录"><view></view><view></view></view>
+    <block wx:if="{{loadError}}">
       <text>{{loadError}}</text>
       <button class="btn-text" bindtap="onRetry">重试</button>
     </block>
@@ -198,5 +202,4 @@
 </view>
 
 <view wx:if="{{canEdit && !composerOpen}}" class="compose-launch"><button class="btn btn-primary" disabled="{{busy}}" bindtap="openComposer">{{composerOpen ? '继续记录' : text || images.length ? '继续未完成的草稿' : '＋ 记下一个瞬间'}}</button></view>
-<app-tabs active="records" flow disabled="{{busy || savePending || recording || transcribing || voiceStarting}}" />
 </view>

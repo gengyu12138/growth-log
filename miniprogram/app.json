@@ -26,5 +26,30 @@
     "scope.record": {
       "desc": "将你主动录制的语音转成文字并整理成长记录，检查后才保存"
     }
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#52695e",
+    "selectedColor": "#096f60",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "记录"
+      },
+      {
+        "pagePath": "pages/growth/growth",
+        "text": "回顾"
+      },
+      {
+        "pagePath": "pages/assistant/assistant",
+        "text": "助手"
+      },
+      {
+        "pagePath": "pages/members/members",
+        "text": "家人"
+      }
+    ]
   }
 }

@@ -23,6 +23,19 @@ App({
     this.ensureMember().catch(() => {});
   },
 
+  selectTab(page, active) {
+    const bar = typeof page.getTabBar === 'function' && page.getTabBar();
+    if (bar) bar.setData({ active });
+  },
+
+  openAssistant(prompt) {
+    if (prompt) {
+      const member = this.globalData.member;
+      this.globalData.assistantPrompt = { text: prompt, memberId: member && member._id, familyCode: member && member.family_code };
+    }
+    wx.switchTab({ url: '/pages/assistant/assistant' });
+  },
+
   ensureMember() {
     if (this.ready) return this.ready;
     const version = this.memberVersion;

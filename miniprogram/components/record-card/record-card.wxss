@@ -276,3 +276,25 @@
 .tag::after {
   border:0
 }
+
+.record.compact { background:transparent; border:0; border-bottom:1rpx solid #dce7e2; border-radius:0; padding:8rpx 0 16rpx; margin:0; }
+.compact .record-head { margin-bottom:8rpx; gap:8rpx; }
+.compact .type { font-size:23rpx; }
+.compact button.more { width:72rpx; min-height:64rpx; padding:0; margin:-12rpx -8rpx -12rpx auto; font-size:27rpx; }
+.compact .title { font-size:29rpx; margin-bottom:8rpx; line-height:1.5; }
+.compact .body { font-size:28rpx; line-height:1.6; }
+.compact .metrics { gap:16rpx; margin:6rpx 0 10rpx; }
+.compact .metric, .compact .metric.featured { flex:initial; flex-basis:auto; min-width:0; }
+.compact .metric .label { display:inline; margin-right:8rpx; font-size:22rpx; }
+.compact .metric>view { display:inline; }
+.compact .value, .compact .featured .value { font-size:32rpx; }
+.compact .unit { font-size:23rpx; margin-left:4rpx; }
+.compact .manual { font-size:21rpx; }
+.compact .interval { font-size:23rpx; margin:6rpx 0 10rpx; }
+.compact .facts { margin-top:10rpx; }
+.compact .fact { padding:8rpx 0; font-size:25rpx; }
+.compact .photos { gap:8rpx; margin:12rpx 0; }
+.compact .photos image, .compact .photos.single image { width:144rpx; height:144rpx; border-radius:10rpx; }
+.compact .record-foot { margin-top:6rpx; font-size:23rpx; gap:10rpx; }
+.compact button.link { min-height:52rpx; font-size:23rpx; padding:4rpx 0; margin-left:auto; }
+.compact .note, .compact .saved { font-size:23rpx; margin-top:8rpx; }

@@ -3,7 +3,8 @@
   flex-direction:column;
   position:relative;
   z-index:1;
-  overflow:hidden
+  overflow:hidden;
+  padding-bottom:calc(100rpx + env(safe-area-inset-bottom))
 }
 
 .scroll {
@@ -436,3 +437,17 @@
   width:100%;
   max-width:none
 }
+
+.tl-item { display:flex; align-items:stretch; }
+.tl-time { width:82rpx; flex:none; padding:12rpx 12rpx 0 0; text-align:right; font-size:25rpx; line-height:1.5; color:var(--ink-2); font-variant-numeric:tabular-nums; }
+.tl-time text { display:block; }
+.tl-time-hint { font-size:20rpx; color:var(--ink-3); }
+.tl-rail { width:28rpx; flex:none; position:relative; display:flex; justify-content:center; padding-top:26rpx; }
+.tl-rail::before { content:''; position:absolute; top:0; bottom:0; width:2rpx; background:#cdded4; }
+.tl-item:last-child .tl-rail::before { bottom:auto; height:28rpx; }
+.tl-node { position:relative; width:14rpx; height:3rpx; background:#378574; }
+.tl-node-health { background:#ad6570; }
+.tl-node-first { background:#a56d2d; }
+.tl-card { flex:1; min-width:0; padding-left:12rpx; padding-bottom:14rpx; }
+.initial-placeholder { padding:16rpx 0; }
+.initial-placeholder view { height:80rpx; margin-bottom:16rpx; border-radius:12rpx; background:#e7efea; }

@@ -1,4 +1,4 @@
-<backdrop /><navbar title="成长回顾" back />
+<backdrop /><navbar title="成长回顾" />
 <view class="page page-root">
   <view class="tabs surface"><button class="tab {{tab === 'memories' ? 'active' : ''}}" data-tab="memories" bindtap="onTab">成长回忆</button><button class="tab {{tab === 'summary' ? 'active' : ''}}" data-tab="summary" bindtap="onTab">月度小结</button><button class="tab {{tab === 'statistics' ? 'active' : ''}}" data-tab="statistics" bindtap="onTab">数据统计</button></view>
   <view class="stat-windows"><button class="btn-text" bindtap="goPhotos">照片回忆</button><button class="btn-text" bindtap="goFirsts">全部第一次</button><button class="btn-text" bindtap="goFavorites">珍藏时刻</button></view>
@@ -8,9 +8,9 @@
     <picker mode="date" value="{{statStart}}" data-field="statStart" bindchange="onStatDate"><view class="field-input">开始：{{statStart}}</view></picker>
     <picker mode="date" value="{{statEnd}}" data-field="statEnd" bindchange="onStatDate"><view class="field-input">结束：{{statEnd}}</view></picker>
   </view>
-  <text wx:if="{{loading}}" class="intro">正在读取完整记录…</text>
+  <view wx:if="{{loading && !viewReady}}" class="initial-placeholder" aria-label="正在读取成长回顾"><view></view><view></view></view>
   <text class="msg-error">{{error}}</text><button wx:if="{{error}}" class="btn-text" bindtap="load">重试</button>
-  <block wx:if="{{!loading && !error && tab === 'statistics' && statistics}}">
+  <block wx:if="{{viewReady && tab === 'statistics' && statistics}}">
     <text class="intro">已发生记录 {{statistics.total}} 条，其中 {{statistics.structured}} 条有结构化卡片。计划不计入；未结构化记录不估算数值，以下不代表全天完整摄入或作息。</text>
     <text wx:if="{{!statistics.groups.length}}" class="intro">这个范围还没有可统计的卡片。新记录识别后会在这里汇总，旧记录不会被自动改写。</text>
     <view wx:for="{{statistics.groups}}" wx:for-item="group" wx:for-index="gi" wx:key="type" class="surface card">
@@ -24,7 +24,7 @@
       </view>
     </view>
   </block>
-  <block wx:if="{{!loading && !error && tab === 'memories'}}">
+  <block wx:if="{{viewReady && tab === 'memories'}}">
     <view wx:for="{{groups}}" wx:key="date" class="surface card">
       <text class="t-h2">{{item.label}} · {{item.date}}</text>
       <view wx:for="{{item.entries}}" wx:for-item="entry" wx:key="_id" class="memory" data-id="{{entry._id}}" bindtap="onOpen"><text class="date">{{entry.happened_on}}</text><text class="record-text">{{entry.content || '照片记录'}}</text><text class="t-micro">{{entry.images.length || 0}} 张照片 · 查看原记录</text></view>
@@ -33,7 +33,7 @@
     <text wx:if="{{!groups.length && !milestones.length}}" class="intro">这几个回忆日期还没有记录，继续积累就会在这里遇见过去。</text>
     <button class="btn-text" bindtap="goFavorites">查看全部珍藏</button>
   </block>
-  <view wx:if="{{!loading && !error && tab === 'summary' && summary}}" class="surface card">
+  <view wx:if="{{viewReady && tab === 'summary' && summary}}" class="surface card">
     <text class="t-h2">{{month}} · {{summary.count}} 条记录</text>
     <text class="intro">记录 {{summary.days}} 天 · 第一次 {{summary.firstCount}} 条 · 收藏 {{summary.favoriteCount}} 条 · 照片 {{summary.photoCount}} 张</text>
     <text wx:if="{{!summary.count}}" class="intro">这个月还没有记录。</text>
@@ -57,5 +57,3 @@
     </view>
   </view>
 </view>
-
-<app-tabs active="growth" disabled="{{false}}" />

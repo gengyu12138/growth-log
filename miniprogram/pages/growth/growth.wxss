@@ -19,3 +19,6 @@
 .page{padding-bottom:calc(160rpx + env(safe-area-inset-bottom))}
 
 .stat-range .field-input{display:flex;align-items:center}.measure-points{display:flex;flex-wrap:wrap;gap:12rpx;margin:14rpx 0}.measure-points text{padding:8rpx 12rpx;border-left:3rpx solid #378574;background:#f1f7f4;font-size:25rpx}.source-overlay{z-index:40}
+
+.initial-placeholder { padding:24rpx 0; }
+.initial-placeholder view { height:180rpx; border-radius:20rpx; background:#e7efea; margin-bottom:24rpx; }

@@ -11,10 +11,6 @@
   min-height:100rpx
 }
 
-.tabs.flow {
-  position:relative
-}
-
 .tab {
   flex:1;
   display:flex;

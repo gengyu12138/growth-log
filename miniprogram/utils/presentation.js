@@ -1,6 +1,6 @@
 const { ageLabel, recordedTimeLabel, entryTime, fmtTime } = require('./date');
 
-function present(entry, birthday, preview = false) {
+function present(entry, birthday, preview = false, compact = false) {
   const card = entry.card;
   const fields = card && Array.isArray(card.fields) ? card.fields : [];
   const p = card && card.presentation;
@@ -17,16 +17,18 @@ function present(entry, birthday, preview = false) {
   const primary = fields.find((field) => typeof field.value === 'number' && p && p.primary === field.label)
     || fields.find((field) => typeof field.value === 'number');
   const visibleFields = fields.slice(0, 6).map((field) => Object.assign({}, field, { primary: field === primary }));
+  const excerptLength = compact ? 64 : 100;
+  const metrics = showMetrics ? visibleFields.filter((field) => typeof field.value === 'number') : [];
   const labels = { daily: '日常', first: '第一次', health: '健康' };
   return {
     layout, type: card && card.type || labels[entry.kind] || '日常',
     title: p && p.title && (entry.content || '').includes(p.title) ? p.title : '',
-    text: entry.content || '', long: (entry.content || '').length > 100,
-    excerpt: (entry.content || '').length > 100 ? entry.content.slice(0, 100) + '…' : entry.content || '',
+    text: entry.content || '', long: (entry.content || '').length > excerptLength,
+    excerpt: (entry.content || '').length > excerptLength ? entry.content.slice(0, excerptLength) + '…' : entry.content || '',
     time: entryTime(entry) || (preview ? fmtTime(Date.now()) : ''),
     timeFallback: !entry.at, savedTime: entry.at || preview ? '' : recordedTimeLabel(entry.created_at),
     age: birthday ? ageLabel(birthday, entry.happened_on) : entry.ageLabel || '',
-    images, metrics: showMetrics ? visibleFields.filter((field) => typeof field.value === 'number') : [],
+    images, previewImages: images.slice(0, 3), metrics, compactMetrics: metrics.slice().sort((a, b) => Number(b.primary) - Number(a.primary)).slice(0, 2),
     facts: visibleFields.filter((field) => !showMetrics || typeof field.value !== 'number'),
     start: card && card.interval ? card.interval.start.replace('T', ' ') : '',
     end: card && card.interval ? card.interval.end.replace('T', ' ') : '',

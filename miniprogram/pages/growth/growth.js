@@ -4,30 +4,54 @@ const { summarize } = require('../../utils/growth');
 const { statistics } = require('../../utils/cards');
 
 Page({
-  data: { tab: 'memories', loading: false, error: '', groups: [], milestones: [],
+  data: { tab: 'memories', loading: false, refreshing: false, viewReady: false, error: '', groups: [], milestones: [],
     statStart: '', statEnd: '', statistics: null, sourceTitle: '', sources: [], sourceTotal: 0, month: '', summary: null, note: '', noteStatus: '', canEdit: false },
   onLoad() {
     const today = new Date(), start = new Date(today); start.setDate(start.getDate() - 6);
     this.setData({ month: dates.fmtDate(today).slice(0, 7), statStart: dates.fmtDate(start), statEnd: dates.fmtDate(today) });
   },
-  onShow() { this.load(); },
+  onShow() { app.selectTab(this, 'growth'); this.load(); },
+  onHide() { this.rememberView(); },
   onUnload() { this.loadId = (this.loadId || 0) + 1; },
   onTab(e) {
     if (e.currentTarget.dataset.tab === this.data.tab) return;
-    this.setData({ tab: e.currentTarget.dataset.tab }); this.load();
+    this.rememberView(); this.setData({ tab: e.currentTarget.dataset.tab }); this.load();
   },
   onMonth(e) { this.setData({ month: e.detail.value }); this.load(); },
+
+  viewKey() {
+    return this.data.tab + ':' + (this.data.tab === 'summary' ? this.data.month
+      : this.data.tab === 'statistics' ? this.data.statStart + ':' + this.data.statEnd : dates.fmtDate(new Date()));
+  },
+  rememberView() {
+    if (!this.data.viewReady || this.loadedKey !== this.viewKey() || this.data.error) return;
+    const data = {};
+    for (const key of ['groups', 'milestones', 'statistics', 'summary', 'note', 'noteStatus', 'canEdit']) data[key] = this.data[key];
+    if (!this.viewCache) this.viewCache = {};
+    this.viewCache[this.data.tab] = { key: this.loadedKey, data, stats: this.data.tab === 'statistics' ? this.stats : null };
+  },
 
   async load() {
     const id = this.loadId = (this.loadId || 0) + 1;
     const month = this.data.month, tab = this.data.tab;
-    this.statisticSources = [];
-    this.setData({ statistics: null, sources: [], sourceTitle: '', sourceTotal: 0, loading: true, error: '', groups: [], milestones: [], summary: null, note: '', noteStatus: '', canEdit: false });
+    const key = this.viewKey(), cached = this.viewCache && this.viewCache[tab];
+    if (cached && cached.key === key && this.loadedKey !== key) {
+      this.stats = cached.stats; this.loadedKey = key;
+      this.setData(Object.assign({}, cached.data, { viewReady: true }));
+    }
+    const background = this.data.viewReady && this.loadedKey === key;
+    const patch = { sources: [], sourceTitle: '', sourceTotal: 0, error: '', loading: !background, refreshing: background };
+    if (!background) Object.assign(patch, { statistics: null, groups: [], milestones: [], summary: null, note: '', noteStatus: '', viewReady: false });
+    this.setData(patch);
     try {
       const member = await app.ensureMember();
       if (!member) throw new Error('请先加入家庭');
       await app.requireRecordTools();
       if (id !== this.loadId) return;
+      if (this.member && (this.member._id !== member._id || this.member.family_code !== member.family_code)) {
+        this.viewCache = {}; this.loadedKey = null; this.stats = null;
+        this.setData({ statistics: null, groups: [], milestones: [], summary: null, note: '', noteStatus: '', viewReady: false, canEdit: false, loading: true, refreshing: false });
+      }
       this.member = member;
       const cancelled = () => id !== this.loadId;
       if (tab === 'statistics') {
@@ -88,9 +112,11 @@ Page({
         }
         this.setData({ groups, milestones: milestones.slice(0, 8) });
       }
+      if (cancelled()) return;
+      this.loadedKey = key; this.setData({ viewReady: true }); this.rememberView();
     } catch (err) {
       if (id === this.loadId) this.setData({ error: err.message || '读取失败，请重试' });
-    } finally { if (id === this.loadId) this.setData({ loading: false }); }
+    } finally { if (id === this.loadId) this.setData({ loading: false, refreshing: false }); }
   },
 
   onStatDate(e) {
@@ -150,7 +176,7 @@ Page({
   goPhotos() { wx.navigateTo({ url: '/pages/photos/photos' }); },
   goFirsts() { wx.navigateTo({ url: '/pages/search/search?kind=first' }); },
   reviewMonth() {
-    wx.navigateTo({ url: '/pages/assistant/assistant?prompt=' + encodeURIComponent('整理' + this.data.month + '的成长故事，回顾重要变化并引用原文') });
+    app.openAssistant('整理' + this.data.month + '的成长故事，回顾重要变化并引用原文');
   },
   goFavorites() { wx.navigateTo({ url: '/pages/library/library' }); },
   goMonth() { wx.navigateTo({ url: '/pages/search/search?month=' + this.data.month }); },

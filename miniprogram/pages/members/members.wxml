@@ -1,5 +1,5 @@
 <backdrop />
-<navbar title="家庭成员" back />
+<navbar title="家庭成员" />
 
 <view class="page">
   <view class="head">
@@ -91,5 +91,3 @@
 
   <text class="msg-error" bindtap="load">{{msg}}</text>
 </view>
-
-<app-tabs active="members" disabled="{{busy || profileBusy}}" />

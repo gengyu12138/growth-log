@@ -2,8 +2,7 @@
   "navigationBarTitleText": "家庭成员",
   "usingComponents": {
     "backdrop": "/components/backdrop/backdrop",
-    "navbar": "/components/navbar/navbar",
-    "app-tabs": "/components/app-tabs/app-tabs"
+    "navbar": "/components/navbar/navbar"
   },
   "navigationStyle": "custom"
 }

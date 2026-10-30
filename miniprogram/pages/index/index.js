@@ -36,7 +36,7 @@ Page({
     saveRetrySafe: false,
     kbHeight: 0,
     canEdit: false,
-    loading: true,
+    loading: true, refreshing: false,
     hasMore: false,
     loadError: '',
     monthAnim: '',
@@ -103,6 +103,8 @@ Page({
   },
 
   onShow() {
+    app.selectTab(this, 'records');
+    if (this.member && (this.data.busy || this.data.savePending)) return;
     const today = dateUtil.fmtDate(new Date());
     if (today !== this.data.today) this.setData({ today });
     this.init();
@@ -110,7 +112,6 @@ Page({
 
   async init() {
     const id = this.initId = (this.initId || 0) + 1;
-    this.setData({ canEdit: false });
     try {
       const member = await app.ensureMember();
       if (id !== this.initId) return;
@@ -126,7 +127,7 @@ Page({
       const pending = wx.getStorageSync(this.pendingKey);
       this.pendingSave = pending && pending.familyCode === member.family_code ? pending : null;
       const patch = { canEdit: member.role === 'owner' || member.role === 'editor' };
-      if (firstLoad) { this.resetRecognition(); this.aiStates = {}; }
+      if (firstLoad) { this.resetRecognition(); this.aiStates = {}; this.all = []; this.cursor = null; this.loaded = false; this.profile = null; }
       if (firstLoad) Object.assign(patch, { viewMode: 'timeline',
         text: '', images: [], kind: 'daily', draftDate: '', draftBaseDate: '', draftStatus: '', draftAt: '', dateManual: false, timeManual: false, planned: false, planManual: false, savePending: false, saveRetrySafe: false });
       if (this.pendingSave) {
@@ -161,18 +162,18 @@ Page({
         }
       }
       this.setData(patch);
-      await Promise.all([this.reload(), this.loadProfile(id)]);
+      await Promise.all([this.reload(false, !firstLoad), this.loadProfile(id)]);
     } catch (e) {
       if (id === this.initId) {
         this.identityFailed = true;
-        this.setData({ loading: false, loadError: '身份核对失败，请重试' });
+        this.setData({ canEdit: false, loading: false, refreshing: false, loadError: '身份核对失败，请重试' });
       }
     }
   },
 
   async loadProfile(id = this.initId) {
-    this.profile = null;
-    this.setData({ babyLabel: '', profileError: '' });
+    this.setData({ profileError: '' });
+    if (!this.profile) this.setData({ babyLabel: '' });
     try {
       const r = await app.getBabyProfile();
       if (id !== this.initId) return;
@@ -187,19 +188,20 @@ Page({
 
   retryProfile() { return this.loadProfile(); },
 
-  async reload(append = false) {
-    if (append && (this.data.loading || !this.cursor)) return;
+  async reload(append = false, quiet = false) {
+    if (append && (this.data.loading || this.data.refreshing || !this.cursor)) return;
     const id = this.reloadId = (this.reloadId || 0) + 1;
     const identityCheck = this.initId;
     const isCalendar = this.data.viewMode === 'calendar';
     const month = dateUtil.fmtDate(this.month).slice(0, 7);
+    const background = quiet && this.loaded === true;
+    this.refreshFailed = false;
+    const previousCount = this.all.length;
+    let rows = append ? this.all.slice() : [];
     let cursor = append ? this.cursor : null;
-    if (!append) {
-      this.all = [];
-      this.cursor = null;
-    }
-    this.setData({ loading: true, loadError: '', hasMore: Boolean(cursor) });
-    this.render();
+    if (!append && !background) { this.all = []; this.cursor = null; }
+    this.setData({ loading: !background, refreshing: background, loadError: '' });
+    if (!background) this.render();
     try {
       do {
         const data = { action: 'list', cursor };
@@ -227,8 +229,8 @@ Page({
           this.setData({ canEdit: r.member.role === 'owner' || r.member.role === 'editor' });
         }
 
-        const existing = new Set(this.all.map((e) => e._id));
-        this.all = this.all.concat(r.list.filter((e) => !existing.has(e._id)).map((e) => {
+        const existing = new Set(rows.map((e) => e._id));
+        rows = rows.concat(r.list.filter((e) => !existing.has(e._id)).map((e) => {
           const at = /^([01]\d|2[0-3]):[0-5]\d$/.test(e.at || '') ? e.at : '';
           return Object.assign({}, e, {
             images: e.images || [],
@@ -246,16 +248,17 @@ Page({
           });
         }));
         cursor = r.nextCursor;
-        this.cursor = cursor;
-        this.setData({ hasMore: Boolean(cursor) });
-        this.render();
-        // 日历需读完整个月才能准确标记日期；时间轴由用户按需读取更早记录。
-      } while (isCalendar && cursor);
+        if (!background) { this.all = rows; this.cursor = cursor; this.setData({ hasMore: Boolean(cursor) }); this.render(); }
+      } while (cursor && (isCalendar || background && rows.length < previousCount));
+      this.all = rows; this.cursor = cursor; this.loaded = true;
+      this.setData({ hasMore: Boolean(cursor) });
     } catch (err) {
       if (id !== this.reloadId || identityCheck !== this.initId) return;
+      this.refreshFailed = background;
       this.setData({ loadError: '记录未读取完成，请重试' });
     }
-    this.setData({ loading: false });
+    if (id !== this.reloadId || identityCheck !== this.initId) return;
+    this.setData({ loading: false, refreshing: false });
     this.render();
   },
 
@@ -265,6 +268,7 @@ Page({
 
   onRetry() {
     if (this.identityFailed) return this.init();
+    if (this.refreshFailed) return this.reload(false, true);
     return this.reload(Boolean(this.cursor));
   },
 
@@ -358,7 +362,8 @@ Page({
     const mode = e.currentTarget.dataset.mode;
     if (mode === this.data.viewMode) return;
     this.setData({ viewMode: mode });
-    this.reload();
+    this.render();
+    this.reload(false, true);
   },
 
   onPickDay(e) {
@@ -868,15 +873,15 @@ Page({
   },
 
   goMembers() {
-    wx.navigateTo({ url: '/pages/members/members' });
+    wx.switchTab({ url: '/pages/members/members' });
   },
 
   goLibrary() {
     wx.navigateTo({ url: '/pages/library/library' });
   },
 
-  goGrowth() { wx.navigateTo({ url: '/pages/growth/growth' }); },
-  goAssistant() { if (!this.data.busy && !this.data.savePending) wx.navigateTo({ url: '/pages/assistant/assistant' + (this.data.assistantIntent ? '?prompt=' + encodeURIComponent(this.data.text.trim()) : '') }); },
+  goGrowth() { wx.switchTab({ url: '/pages/growth/growth' }); },
+  goAssistant() { if (!this.data.busy && !this.data.savePending) app.openAssistant(this.data.assistantIntent ? this.data.text.trim() : ''); },
 
   onEntryMenu(e) {
     if (this.data.busy || !this.data.canEdit) return;

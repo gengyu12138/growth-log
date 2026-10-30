@@ -3,7 +3,6 @@
   "usingComponents": {
     "backdrop": "/components/backdrop/backdrop",
     "navbar": "/components/navbar/navbar",
-    "smart-card": "/components/smart-card/smart-card",
-    "app-tabs": "/components/app-tabs/app-tabs"
+    "smart-card": "/components/smart-card/smart-card"
   }
 }

@@ -1,4 +1,4 @@
-<backdrop /><navbar title="智能助手" back />
+<backdrop /><navbar title="智能助手" />
 <view class="page page-root">
   <view class="surface card">
     <text class="t-h2">说说你想看什么、关注什么或纠正什么</text>
@@ -88,5 +88,3 @@
     </view><button wx:if="{{sources.length < sourceTotal}}" class="btn-text" bindtap="moreSources">继续查看</button></scroll-view>
   </view></view>
 </view>
-
-<app-tabs active="assistant" disabled="{{busy || saving || pending}}" />

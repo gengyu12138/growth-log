@@ -24,7 +24,8 @@ Page({
   toggleAdvanced() { this.setData({ advanced: !this.data.advanced }); },
   goLibrary() { wx.navigateTo({ url: '/pages/library/library' }); },
   onShow() {
-    this.load();
+    app.selectTab(this, 'members');
+    if (!this.data.busy && !this.data.profileBusy) this.load();
   },
 
   openAiSettings() {
@@ -42,10 +43,7 @@ Page({
 
   async load() {
     const id = this.loadId = (this.loadId || 0) + 1;
-    this.profile = null;
-    this.profileDirty = false;
-    this.setData({ isOwner: false, invite: null, msg: '', profileSupported: false,
-      profileBusy: false, profileError: '', nickname: '', birthday: '' });
+    this.setData({ msg: '' });
     try {
       const member = await app.ensureMember();
       if (id !== this.loadId) return;
@@ -53,6 +51,11 @@ Page({
         wx.reLaunch({ url: '/pages/join/join' });
         return;
       }
+      if (this.member && (this.member._id !== member._id || this.member.family_code !== member.family_code)) {
+        this.profile = null; this.profileDirty = false;
+        this.setData({ members: [], isOwner: false, invite: null, profileSupported: false, nickname: '', birthday: '' });
+      }
+      this.member = member;
       const res = await wx.cloud.callFunction({
         name: 'family',
         data: { action: 'listMembers' },
@@ -75,7 +78,7 @@ Page({
         isOwner: me.role === 'owner',
         myRoleLabel: ROLE_LABEL[me.role] || '成员',
       });
-      await this.loadProfile(id, me.family_code);
+      if (!this.profileDirty && !this.data.profileBusy) await this.loadProfile(id, me.family_code, !!this.profile);
     } catch (e) {
       if (id !== this.loadId) return;
       this.setData({ msg: '成员列表没拉下来，请点此重试' });
@@ -86,19 +89,21 @@ Page({
     this.loadId = (this.loadId || 0) + 1;
   },
 
-  async loadProfile(id = this.loadId, familyCode) {
-    this.setData({ profileBusy: true, profileError: '', today: require('../../utils/date').fmtDate(new Date()) });
+  async loadProfile(id = this.loadId, familyCode, quiet = false) {
+    this.setData({ profileError: '', today: require('../../utils/date').fmtDate(new Date()) });
+    if (!quiet) this.setData({ profileBusy: true });
     try {
       const r = await app.getBabyProfile();
       if (id !== this.loadId) return;
       if (!r.supported) { this.setData({ profileSupported: false, profileError: '宝宝档案尚未启用，请联系管理员' }); return; }
       if (familyCode && r.member.family_code !== familyCode) throw new Error('家庭身份已变化，请重新打开页面');
+      if (quiet && this.profileDirty) return;
       this.profile = r.profile;
       this.profileDirty = false;
       this.setData({ profileSupported: true, nickname: r.profile ? r.profile.nickname : '',
         birthday: r.profile ? r.profile.birthday : '' });
     } catch (err) { if (id === this.loadId) this.setData({ profileError: err.message }); }
-    finally { if (id === this.loadId) this.setData({ profileBusy: false }); }
+    finally { if (!quiet && id === this.loadId) this.setData({ profileBusy: false }); }
   },
 
   onNickname(e) { if (!this.data.profileBusy && this.data.isOwner) { this.profileDirty = true; this.setData({ nickname: e.detail.value }); } },

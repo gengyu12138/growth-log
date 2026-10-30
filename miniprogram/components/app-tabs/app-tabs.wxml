@@ -1,1 +1,0 @@
-<view class="tabs {{flow ? 'flow' : ''}}"><button wx:for="{{tabs}}" wx:key="key" class="tab {{active === item.key ? 'active' : ''}}" disabled="{{disabled}}" data-index="{{index}}" bindtap="open" aria-label="{{item.label}}">{{item.label}}</button></view>
