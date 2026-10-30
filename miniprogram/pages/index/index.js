@@ -2,6 +2,8 @@ const dateUtil = require('../../utils/date');
 const { editField, clearInterval } = require('../../utils/cards');
 const { readViews, acceptCloudViews } = require('../../utils/assistant');
 const { createVoice } = require('../../utils/voice');
+const outbox = require('../../utils/outbox');
+const review = require('../../utils/review');
 
 const app = getApp();
 
@@ -42,7 +44,7 @@ Page({
     monthAnim: '',
     today: '',
     viewMode: 'timeline',
-    composerOpen: false, advanced: false, editingCardIndex: -1, showPlans: false, recording: false, transcribing: false, voiceStatus: '', voiceRetry: false, voiceStarting: false,
+    composerOpen: true, inputMode: 'voice', localMode: false, offline: false, syncing: false, queueCount: 0, queueError: '', duplicateCandidates: [], kindManual: false, advanced: false, editingCardIndex: -1, showPlans: false, recording: false, voiceSeconds: 0, transcribing: false, voiceStatus: '', voiceRetry: false, voiceStarting: false,
     timeline: [],
     statusBar: 20,
     barHeight: 44,
@@ -53,6 +55,9 @@ Page({
 
   onLoad(options) {
     this.disposed = false;
+    this.networkHandler = (r) => { this.setData({ offline: !r.isConnected }); if (r.isConnected) this.init(); };
+    wx.onNetworkStatusChange(this.networkHandler);
+    wx.getNetworkType({ success: (r) => { if (!this.disposed) this.setData({ offline: r.networkType === 'none' }); } });
     this.voice = createVoice(this, async (text) => {
       const combined = [this.data.text.trim(), text].filter(Boolean).join('\n');
       this.onText({ detail: { value: combined } });
@@ -89,6 +94,7 @@ Page({
   onUnload() {
     this.disposed = true;
     if (this.voice) this.voice.dispose();
+    if (this.networkHandler) wx.offNetworkStatusChange(this.networkHandler);
     this.analysisVersion = (this.analysisVersion || 0) + 1;
     this.persistDraft();
     this.initId = (this.initId || 0) + 1;
@@ -125,24 +131,17 @@ Page({
       this.pendingKey = 'pendingEntry:' + member._id;
       this.draftKey = 'entryDraft:' + member._id + ':' + member.family_code;
       const pending = wx.getStorageSync(this.pendingKey);
-      this.pendingSave = pending && pending.familyCode === member.family_code ? pending : null;
-      const patch = { canEdit: member.role === 'owner' || member.role === 'editor' };
+      try { if (pending && pending.familyCode === member.family_code) outbox.importPending(member, pending); }
+      catch (err) { this.setData({ queueError: err.message }); }
+      this.pendingSave = null;
+      const patch = { canEdit: member.role === 'owner' || member.role === 'editor', localMode: false, savePending: false, saveRetrySafe: false };
       if (firstLoad) { this.resetRecognition(); this.aiStates = {}; this.all = []; this.cursor = null; this.loaded = false; this.profile = null; }
-      if (firstLoad) Object.assign(patch, { viewMode: 'timeline',
-        text: '', images: [], kind: 'daily', draftDate: '', draftBaseDate: '', draftStatus: '', draftAt: '', dateManual: false, timeManual: false, planned: false, planManual: false, savePending: false, saveRetrySafe: false });
-      if (this.pendingSave) {
-        Object.assign(patch, {
-          text: pending.content, images: pending.images, kind: pending.kind, composerOpen: true,
-          selectedDate: pending.happened_on, savePending: true, saveRetrySafe: pending.retrySafe === true,
-          draftDate: pending.happened_on, draftBaseDate: pending.happened_on, draftAt: pending.at || '', planned: pending.planned === true,
-          analysisEvents: pending.items || [],
-        });
-        this.month = dateUtil.startOfMonth(dateUtil.parseDate(pending.happened_on));
-      } else if (firstLoad) {
+      if (firstLoad) Object.assign(patch, { viewMode: 'timeline', text: '', images: [], kind: 'daily', draftDate: '', draftBaseDate: '', draftStatus: '', draftAt: '', dateManual: false, timeManual: false, planned: false, planManual: false });
+      if (firstLoad) {
         const draft = wx.getStorageSync(this.draftKey);
         if (draft && typeof draft.text === 'string' && Array.isArray(draft.images)) {
           const images = draft.images.filter((path) => {
-            try { wx.getFileSystemManager().accessSync(path); return true; } catch (e) { return false; }
+            try { if (path.startsWith('cloud://')) return true; wx.getFileSystemManager().accessSync(path); return true; } catch (e) { return false; }
           });
           if (Array.isArray(draft.proposals) && draft.proposals.length > 0 && draft.proposals.length <= 5
             && draft.proposals.every((item) => item && typeof item.content === 'string' && item.content.trim()
@@ -156,17 +155,34 @@ Page({
             this.analysisText = draft.text.trim(); this.analyzedAt = Date.now(); this.proposalEdited = true;
           }
           Object.assign(patch, { text: draft.text, images, kind: draft.kind, composerOpen: true,
+            kindManual: draft.kindManual === true,
             draftDate: draft.date, draftBaseDate: draft.baseDate || draft.date, draftAt: draft.at || '', dateManual: draft.dateManual === true,
             timeManual: draft.timeManual === true, planned: draft.planned === true, planManual: draft.planManual === true, draftStatus: images.length === draft.images.length
               ? '已恢复本机草稿' : '已恢复文字，部分图片已失效，请重新选择' });
+          this.sourceOutboxId = draft.sourceOutboxId || '';
         }
       }
       this.setData(patch);
+      try { this.applyIncomingDraft(); } catch (err) { this.setData({ queueError: err.message }); }
+      this.refreshQueue(); this.syncOutbox();
       await Promise.all([this.reload(false, !firstLoad), this.loadProfile(id)]);
     } catch (e) {
       if (id === this.initId) {
         this.identityFailed = true;
-        this.setData({ canEdit: false, loading: false, refreshing: false, loadError: '身份核对失败，请重试' });
+        const cached = app.getLocalMember();
+        if (cached && ['owner', 'editor'].includes(cached.role)) {
+          if (!this.member || this.member._id !== cached._id || this.member.family_code !== cached.family_code) {
+            this.resetRecognition(); this.all = []; this.loaded = false; this.sourceOutboxId = '';
+            this.setData({ text: '', images: [], timeline: [], dayEntries: [], babyLabel: '', kindManual: false });
+          }
+          this.member = cached; this.draftKey = 'entryDraft:' + cached._id + ':' + cached.family_code;
+          this.pendingKey = 'pendingEntry:' + cached._id;
+          const draft = wx.getStorageSync(this.draftKey);
+          if (!this.data.text && draft && typeof draft.text === 'string' && Array.isArray(draft.images)) this.setData({ text: draft.text, images: draft.images, draftDate: draft.date, draftBaseDate: draft.baseDate || draft.date, kind: draft.kind || 'daily' });
+          this.setData({ canEdit: false, localMode: true, loading: false, refreshing: false, loadError: '暂时无法核对在线身份，可先存本机，联网后再同步' });
+          try { this.applyIncomingDraft(); } catch (err) { this.setData({ queueError: err.message }); }
+          this.refreshQueue();
+        } else this.setData({ canEdit: false, loading: false, refreshing: false, loadError: '身份核对失败，请重试' });
       }
     }
   },
@@ -238,7 +254,7 @@ Page({
             place: e.place || '',
             note: e.note || '',
             at,
-            timeLabel: at || dateUtil.fmtTime(e.created_at),
+            timeLabel: dateUtil.entryTime(e),
             recordedLabel: at ? '' : dateUtil.recordedTimeLabel(e.created_at),
             fromText: Boolean(at),
             temp: typeof e.temp === 'number' ? e.temp : null,
@@ -376,8 +392,9 @@ Page({
   stopVoice() { this.voice.stop(); },
   cancelVoice() { this.voice.cancel(); },
   retryVoice() { if (!this.data.busy && !this.data.savePending && !this.data.recording && !this.data.voiceStarting && this.data.canEdit) this.voice.retry(); },
+  voiceSettings() { wx.openSetting({ success: (r) => { if (!this.disposed) this.setData({ voicePermissionDenied: !r.authSetting['scope.record'], voiceStatus: r.authSetting['scope.record'] ? '已允许麦克风，点击说话开始录音' : '可切换键盘继续输入' }); } }); },
   openComposer(e) {
-    if (!this.data.canEdit || this.data.busy) return;
+    if ((!this.data.canEdit && !this.data.localMode) || this.data.busy) return;
     const date = e && e.currentTarget.dataset.date;
     const patch = { composerOpen: true };
     if (!this.data.text && !this.data.images.length && !this.data.savePending) {
@@ -385,7 +402,6 @@ Page({
     }
     this.setData(patch);
   },
-  closeComposer() { if (!this.data.busy && !this.data.savePending && !this.data.recording && !this.data.transcribing && !this.data.voiceStarting) { this.persistDraft(); this.setData({ composerOpen: false }); } },
   toggleAdvanced() { this.setData({ advanced: !this.data.advanced }); },
   toggleCardEditor(e) { const index = Number(e.currentTarget.dataset.index); this.setData({ editingCardIndex: this.data.editingCardIndex === index ? -1 : index }); },
   togglePlans() { this.setData({ showPlans: !this.data.showPlans }, () => this.render()); },
@@ -396,8 +412,8 @@ Page({
   goPhotos() { wx.navigateTo({ url: '/pages/photos/photos' }); },
 
   onKind(e) {
-    if (this.data.busy || this.data.savePending || !this.data.canEdit) return;
-    this.setData({ kind: e.currentTarget.dataset.kind });
+    if (this.data.busy || this.data.savePending || (!this.data.canEdit && !this.data.localMode)) return;
+    this.setData({ kind: e.currentTarget.dataset.kind, kindManual: true });
     this.persistDraft();
   },
 
@@ -438,7 +454,8 @@ Page({
     this.analysisTask = null;
     this.analysisText = '';
     this.proposalEdited = false;
-    this.setData({ recognizing: false, recognitionStatus: '', recognitionWarning: '', analysisEvents: [], newTypes: [], newTypesLabel: '', assistantIntent: '' });
+    this.duplicateAck = '';
+    this.setData({ duplicateCandidates: [], pendingDuplicate: false, clarificationQuestion: '', clarificationAnswer: '', recognizing: false, recognitionStatus: '', recognitionWarning: '', analysisEvents: [], newTypes: [], newTypesLabel: '', assistantIntent: '' });
   },
 
   onDraftTime(e) {
@@ -496,6 +513,16 @@ Page({
     this.resetRecognition(); return this.recognize();
   },
 
+  onClarification(e) { if (!this.data.busy) this.setData({ clarificationAnswer: e.detail.value }); },
+  async addClarification() {
+    if (this.data.busy || this.data.recognizing) return;
+    const answer = (this.data.clarificationAnswer || '').trim();
+    if (!answer) return;
+    const text = this.data.text + '\n补充确认：' + answer;
+    if (text.length > 500) { wx.showToast({ title: '补充后超过500字，请先精简原文', icon: 'none' }); return; }
+    this.onText({ detail: { value: text } }); await this.recognize();
+  },
+
   async recognize() {
     const text = this.data.text.trim();
     if (!text || this.data.text.length > 500 || !this.data.canEdit || this.data.savePending) return false;
@@ -541,6 +568,7 @@ Page({
         this.analysisText = text; this.analyzedAt = Date.now();
         const first = events[0];
         this.setData({ knownTypes: r.knownTypes || [], newTypes: r.newTypes || [], newTypesLabel: (r.newTypes || []).join('、'), analysisEvents: events, draftDate: first.date, draftAt: first.at, planned: first.planned,
+          clarificationQuestion: r.question || '', clarificationAnswer: '',
           recognitionStatus: events.length > 1 ? '识别到' + events.length + '件事，请检查后确认拆分' : '已识别，可直接修改日期和时间',
           recognitionWarning: [...new Set(warnings.filter(Boolean))].join('；') });
         this.persistDraft();
@@ -564,7 +592,7 @@ Page({
         this.setData({ draftStatus: '', draftDate: '' });
       } else {
         wx.setStorageSync(this.draftKey, { text: this.data.text, images: this.data.images,
-          kind: this.data.kind, date: this.data.draftDate || this.data.selectedDate,
+          kind: this.data.kind, kindManual: this.data.kindManual, sourceOutboxId: this.sourceOutboxId || '', date: this.data.draftDate || this.data.selectedDate,
           baseDate: this.data.draftBaseDate, at: this.data.draftAt, dateManual: this.data.dateManual, timeManual: this.data.timeManual,
           planned: this.data.planned, planManual: this.data.planManual,
           knownTypes: this.data.knownTypes, newTypes: this.data.newTypes, proposals: this.proposalEdited ? this.data.analysisEvents : null });
@@ -575,16 +603,15 @@ Page({
     }
   },
 
-  clearDraft() {
+  clearDraft(keepFiles = false) {
     if (!this.draftKey) return;
     if (this.voice) this.voice.reset();
     const draft = wx.getStorageSync(this.draftKey);
     wx.removeStorageSync(this.draftKey);
-    for (const path of (draft && draft.images) || []) {
-      wx.removeSavedFile({ filePath: path, fail: () => {} });
-    }
+    if (!keepFiles && draft && this.member) outbox.releaseFiles(this.member, draft.images || []);
+    this.sourceOutboxId = '';
     this.resetRecognition();
-    this.setData({ composerOpen: false, draftDate: '', draftBaseDate: '', draftStatus: '', draftAt: '', dateManual: false, timeManual: false, planned: false, planManual: false });
+    this.setData({ composerOpen: true, kindManual: false, draftDate: '', draftBaseDate: '', draftStatus: '', draftAt: '', dateManual: false, timeManual: false, planned: false, planManual: false });
   },
 
   discardDraft() {
@@ -597,7 +624,7 @@ Page({
   },
 
   async onPickImage() {
-    if (this.data.busy || this.data.savePending || this.data.pickingImages || this.data.recording || this.data.transcribing || !this.data.canEdit) return;
+    if (this.data.busy || this.data.savePending || this.data.pickingImages || this.data.recording || this.data.transcribing || (!this.data.canEdit && !this.data.localMode)) return;
     const left = 9 - this.data.images.length;
     if (left <= 0) {
       wx.showToast({ title: '一次最多 9 张', icon: 'none' });
@@ -631,7 +658,7 @@ Page({
         this.persistDraft();
       }
     } catch (err) {
-      if (!String(err.errMsg || '').includes('cancel')) wx.showToast({ title: '图片未全部保存，请重试', icon: 'none' });
+      if (!String(err.errMsg || '').includes('cancel')) wx.showToast({ title: /quota|exceed|space|storage|limit/i.test(err.errMsg || '') ? '本机空间不足，请先同步已有照片' : '图片未全部保存，请重试', icon: 'none' });
     } finally { this.setData({ pickingImages: false }); }
   },
 
@@ -643,7 +670,7 @@ Page({
     images.splice(index, 1);
     this.setData({ images });
     this.persistDraft();
-    if (path) wx.removeSavedFile({ filePath: path, fail: () => {} });
+    if (path && this.member) outbox.releaseFiles(this.member, [path]);
   },
 
   onPreview(e) {
@@ -652,151 +679,111 @@ Page({
     wx.previewImage({ current: src, urls: all });
   },
 
-  async onSave() {
-    if (this.data.busy || this.data.pickingImages || this.data.recording || this.data.transcribing || this.data.voiceStarting) return;
-    if (!this.data.canEdit && !this.pendingSave) return;
-    const text = this.data.text.trim();
-    const local = this.data.images.slice();
-    if (this.data.text.length > 500) { wx.showToast({ title: '正文超过500字，原文已保留', icon: 'none' }); return; }
-
-    if (!text && !local.length) {
-      wx.showToast({ title: '写点什么，或加张图', icon: 'none' });
-      return;
-    }
-
-    this.setData({ busy: true });
-    wx.showLoading({ title: '保存中', mask: true });
-
-    const fileIDs = [];
-    let submitted = Boolean(this.pendingSave);
-    const hadPending = Boolean(this.pendingSave);
-
+  draftSnapshot() {
+    return { text: this.data.text, images: this.data.images.slice(), kind: this.data.kind,
+      date: this.data.draftDate || this.data.today, baseDate: this.data.draftBaseDate || this.data.today,
+      at: this.data.draftAt || '', dateManual: this.data.dateManual, timeManual: this.data.timeManual,
+      planned: this.data.planned, planManual: this.data.planManual, kindManual: this.data.kindManual,
+      knownTypes: this.data.knownTypes, newTypes: this.data.newTypes, proposals: this.data.analysisEvents };
+  },
+  refreshQueue() {
+    if (!this.member) return;
+    try { this.setData({ queueCount: outbox.read(this.member).length }); }
+    catch (err) { this.setData({ queueError: err.message }); }
+  },
+  async syncOutbox(force = false) {
+    if (!this.member || this.data.syncing || this.data.offline) return;
+    const member = this.member;
+    this.setData({ syncing: true });
     try {
-      const capabilities = await app.getEntryCapabilities();
-      let pending = this.pendingSave;
-      if (pending && (!pending.retrySafe || !capabilities.idempotentAdd)) {
-        wx.hideLoading();
-        // 旧服务不记录 requestId，响应丢失后无法自动判定是否已写入。
-        const choice = await new Promise((resolve) => wx.showActionSheet({
-          itemList: ['查看时间轴核对', '已保存，清除待确认', '确认未保存，重新提交'],
-          success: (r) => resolve(r.tapIndex),
-          fail: () => resolve(-1),
-        }));
-        if (choice === 0) {
-          this.setData({ viewMode: 'timeline' });
-          await this.reload();
-        } else if (choice === 1) {
-          wx.removeStorageSync(this.pendingKey);
-          this.pendingSave = null;
-          this.clearDraft();
-          this.setData({ text: '', images: [], savePending: false, saveRetrySafe: false });
-          await this.reload();
-        }
-        if (choice !== 2) return;
-        pending.retrySafe = capabilities.idempotentAdd;
-        wx.setStorageSync(this.pendingKey, pending);
-        this.setData({ saveRetrySafe: pending.retrySafe });
-        wx.showLoading({ title: '保存中', mask: true });
+      const r = await outbox.flush(app, member, { force });
+      if (this.disposed || !this.member || this.member._id !== member._id || this.member.family_code !== member.family_code) return;
+      this.setData({ queueError: r.error }); this.refreshQueue();
+      if (r.sent.length) { this.setData({ lastSavedId: r.sent[0], lastSavedCount: r.sent.length }); this.reload(false, true); }
+    } catch (err) { if (!this.disposed) this.setData({ queueError: err.message }); }
+    finally {
+      if (!this.disposed) {
+        this.setData({ syncing: false });
+        if (!this.data.queueError && outbox.read(member).some((item) => item.confirmed && item.status === 'queued' && !item.lastAttempt)) this.syncOutbox();
       }
-      if (!pending) {
-        wx.hideLoading();
-        const recognized = text ? await this.recognize() : true;
-        if (text !== this.data.text.trim() || !this.data.canEdit) return;
-        if (this.data.assistantIntent) { wx.showToast({ title: '请打开智能助手检查结果', icon: 'none' }); return; }
-        const events = recognized ? this.data.analysisEvents : [];
-        const newTypes = this.data.newTypes.filter((name) => events.some((item) => item.card && item.card.type === name));
-        const needsReview = newTypes.length || text && !recognized || this.data.recognitionWarning || events.length > 1 || this.data.planned;
-        if (needsReview) {
-          const content = !recognized ? '智能识别暂不可用。请核对输入区的日期、时间和计划开关；仍按当前设置保存？'
-            : [newTypes.length ? '将新增记录类型：' + newTypes.join('、') + '，以后同类内容自动复用。' : '', this.data.recognitionWarning, events.length > 1 ? '将保存为' + events.length + '条独立记录，所选图片会附在每条记录上。'
-              : this.data.planned ? '这条将保存为计划，不计入已发生的成长回顾。' : '将按输入区显示的日期和时间保存。'].filter(Boolean).join('\n');
-          const confirmed = await new Promise((resolve) => wx.showModal({ title: '确认记录信息', content,
-            confirmText: '确认保存', cancelText: '返回检查', success: (r) => resolve(r.confirm), fail: () => resolve(false) }));
-          if (!confirmed) return;
-        }
-        if (events.some((item) => item.card) && capabilities.dynamicCards !== 1) throw new Error('请先更新云函数再保存智能卡片');
-        if (capabilities.smartInput !== 1 && (this.data.timeManual || this.data.planned || events.length > 1)) {
-          throw new Error('请先更新云函数再保存时间或计划');
-        }
-        wx.showLoading({ title: '保存中', mask: true });
-        const kind = this.data.kind;
-        const happenedOn = this.data.draftDate || this.data.selectedDate;
-        const base = `entries/${this.member.family_code}/${Date.now()}`;
-        for (let i = 0; i < local.length; i += 1) {
-          const up = await wx.cloud.uploadFile({
-            cloudPath: `${base}-${i}-${Math.random().toString(36).slice(2, 7)}.jpg`,
-            filePath: local[i],
-          });
-          fileIDs.push(up.fileID);
-        }
-        pending = {
-          familyCode: this.member.family_code,
-          requestId: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2)
-            + Math.random().toString(36).slice(2),
-          content: text, kind, happened_on: happenedOn, images: fileIDs,
-          retrySafe: capabilities.idempotentAdd,
-          smartInput: capabilities.smartInput === 1 ? 1 : undefined,
-          cards: capabilities.dynamicCards === 1 ? 1 : undefined, approvedTypes: newTypes,
-          card: events.length === 1 ? events[0].card : null,
-          at: this.data.draftAt, planned: this.data.planned,
-          items: events.length > 1 ? events.map((item) => ({ content: item.content, kind,
-            happened_on: item.date, at: item.at, planned: item.planned, card: item.card || null })) : undefined,
-        };
-        // 先落本地再提交，断网或重启后仍使用同一标识、同一份内容确认结果。
-        wx.setStorageSync(this.pendingKey, pending);
-        this.pendingSave = pending;
-        this.setData({ savePending: true, saveRetrySafe: pending.retrySafe });
-      }
-      if ((pending.items || pending.smartInput === 1) && capabilities.smartInput !== 1) throw new Error('请恢复新版云函数后再确认保存');
-      if (pending.cards === 1 && capabilities.dynamicCards !== 1) throw new Error('请恢复新版云函数后再确认卡片保存');
-      submitted = true;
-      const res = await wx.cloud.callFunction({
-        name: 'entries',
-        data: {
-          action: pending.items ? 'addBatch' : 'add',
-          cards: pending.cards, card: pending.card, approvedTypes: pending.approvedTypes,
-          smartInput: pending.smartInput, at: pending.at, planned: pending.planned, items: pending.items,
-          requestId: pending.requestId,
-          content: pending.content,
-          kind: pending.kind,
-          happened_on: pending.happened_on,
-          images: pending.images,
-        },
-      });
-
-      const r = (res && res.result) || {};
-      if (r.ok === false && !hadPending) {
-        // 首次提交被明确拒绝，保留原草稿并清理本次未使用的上传文件。
-        wx.removeStorageSync(this.pendingKey);
-        this.pendingSave = null;
-        this.setData({ savePending: false, saveRetrySafe: false });
-        submitted = false;
-      }
-      if (!r.ok) throw new Error(r.error || 'fail');
-
-      wx.removeStorageSync(this.pendingKey);
-      this.pendingSave = null;
-      this.clearDraft();
-      wx.hideLoading();
-      this.setData({ text: '', images: [], savePending: false, saveRetrySafe: false });
-      wx.showToast({ title: '记下了', icon: 'none' });
-      this.reload();
-
-      // 已保存与整理标签分开反馈；标签失败只重试识别，不重新新增。
-      const savedItems = pending.items || [pending];
-      savedItems.forEach((item, i) => { if (item.content) this.autoTag((r.ids || [r.id])[i], item.content, item.kind); });
-    } catch (err) {
-      if (!submitted && fileIDs.length) {
-        wx.cloud.deleteFile({ fileList: fileIDs }).catch(() => {});
-      }
-      wx.hideLoading();
-      const why = (err && err.message) || '';
-      wx.showToast({ title: why && why !== 'fail' ? why.slice(0, 20)
-        : (submitted ? '结果待确认，请核对保存' : '未提交，请重试'), icon: 'none' });
-    } finally {
-      wx.hideLoading();
-      this.setData({ busy: false });
     }
+  },
+  applyIncomingDraft() {
+    const incoming = app.globalData.entryImport;
+    if (!incoming || !this.member) return;
+    if (incoming.memberId !== this.member._id || incoming.familyCode !== this.member.family_code) throw new Error('家庭身份已变化，未带入其他家庭的草稿');
+    const value = outbox.form(incoming.form);
+    if ((this.data.text || this.data.images.length) && this.sourceOutboxId !== incoming.id) outbox.add(this.member, this.draftSnapshot());
+    this.resetRecognition(); this.sourceOutboxId = incoming.id || '';
+    this.setData({ text: value.text, images: value.images, kind: value.kind, kindManual: value.kindManual === true,
+      draftDate: value.date, draftBaseDate: value.baseDate || value.date, draftAt: value.at || '',
+      dateManual: value.dateManual === true, timeManual: value.timeManual === true, planned: value.planned === true,
+      planManual: value.planManual === true, analysisEvents: value.proposals || [], knownTypes: value.knownTypes || [], newTypes: value.newTypes || [],
+      draftStatus: '已带入本机草稿；原有输入保留在草稿箱', composerOpen: true });
+    if (value.proposals && value.proposals.length) { this.analysisText = value.text.trim(); this.analyzedAt = Date.now(); this.proposalEdited = true; }
+    app.globalData.entryImport = null; this.persistDraft();
+  },
+  toggleInputMode() {
+    if (this.data.recording || this.data.transcribing || this.data.voiceStarting || this.data.busy) return;
+    this.setData({ inputMode: this.data.inputMode === 'voice' ? 'text' : 'voice' });
+  },
+  voiceTap() { if (this.data.recording) this.stopVoice(); else this.startVoice(); },
+  inputActions() {
+    if (this.data.busy || this.data.recording || this.data.transcribing || this.data.voiceStarting) return;
+    wx.showActionSheet({ itemList: ['添加照片', '识别照片文字', '待同步与草稿', '重复记录核对'], success: ({ tapIndex }) => {
+      if (tapIndex === 0) this.onPickImage();
+      else wx.navigateTo({ url: ['/pages/import/import', '/pages/outbox/outbox', '/pages/quality/quality'][tapIndex - 1] });
+    } });
+  },
+  goOutbox() { wx.navigateTo({ url: '/pages/outbox/outbox' }); },
+  openLastSaved() { if (this.data.lastSavedId) wx.navigateTo({ url: '/pages/edit/edit?readonly=1&id=' + encodeURIComponent(this.data.lastSavedId) }); },
+  inspectDuplicate(e) { wx.navigateTo({ url: '/pages/edit/edit?readonly=1&id=' + encodeURIComponent(e.currentTarget.dataset.id) }); },
+  duplicateKey() { return JSON.stringify([this.data.text.trim(), this.data.draftDate || this.data.today, this.data.draftAt, this.data.planned, this.data.images]); },
+  keepSeparate() { this.duplicateAck = this.duplicateKey(); this.onSave(); },
+  async onSave() {
+    if (this.data.busy || this.data.pickingImages || this.data.recording || this.data.transcribing || this.data.voiceStarting || (!this.data.canEdit && !this.data.localMode)) return;
+    const text = this.data.text.trim();
+    if ((!text && !this.data.images.length) || text.length > 500) { wx.showToast({ title: '保留文字或照片，正文最多500字', icon: 'none' }); return; }
+    this.setData({ busy: true });
+    try {
+      const recognized = text && !this.data.offline && !this.data.localMode ? await this.recognize() : this.analysisText === text && this.data.analysisEvents.length > 0;
+      if (text !== this.data.text.trim()) return;
+      if (this.data.assistantIntent) { wx.showToast({ title: '请打开智能助手检查结果', icon: 'none' }); return; }
+      const events = recognized ? this.data.analysisEvents : [];
+      const value = { content: text, happened_on: this.data.draftDate || this.data.today, at: this.data.draftAt, planned: this.data.planned, images: this.data.images };
+      const pendingDuplicate = outbox.read(this.member).some((row) => row.confirmed && row.form.text.trim() === text
+        && row.form.date === value.happened_on && (row.form.at || '') === (value.at || '') && !!row.form.planned === !!value.planned
+        && (text || JSON.stringify(row.form.images) === JSON.stringify(value.images)));
+      if (pendingDuplicate && this.duplicateAck !== this.duplicateKey()) { this.setData({ pendingDuplicate: true }); return; }
+      const duplicates = review.candidates(this.all, value);
+      if (duplicates.length && this.duplicateAck !== this.duplicateKey()) { this.setData({ duplicateCandidates: duplicates }); return; }
+      const newTypes = this.data.newTypes.filter((name) => events.some((item) => item.card && item.card.type === name));
+      if (newTypes.length || text && !recognized || events.length > 1 || this.data.planned || this.data.clarificationQuestion) {
+        const confirmed = await new Promise((resolve) => wx.showModal({ title: '核对后保存',
+          content: [!recognized && text ? '暂时未能智能整理，将保留当前原文。' : '', this.data.recognitionWarning, this.data.clarificationQuestion ? '尚待确认：' + this.data.clarificationQuestion + ' 未补充时将按当前预览保存，请确认。' : '',
+            '日期：' + value.happened_on + '，时间：' + (value.at || '本次记录时间'),
+            events.length > 1 ? '将拆为' + events.length + '条记录。' : '', newTypes.length ? '新类型：' + newTypes.join('、') : '',
+            this.data.planned ? '作为待办计划保存。' : '', '内容先保存在本机，联网并核对身份后同步；原文可在待同步箱查看。'].filter(Boolean).join('\n'),
+          confirmText: '确认保存', cancelText: '返回检查', success: (r) => resolve(r.confirm), fail: () => resolve(false) }));
+        if (!confirmed) return;
+      }
+      const kindFor = (card) => this.data.kindManual ? this.data.kind : card && card.type === '健康' ? 'health' : card && card.type === '里程碑' ? 'first' : this.data.kind;
+      const payload = { requestId: outbox.id(), content: text, kind: kindFor(events[0] && events[0].card), happened_on: value.happened_on,
+        kindConfirmed: this.data.kindManual === true,
+        smartInput: 1, cards: 1, approvedTypes: newTypes, card: events.length === 1 ? events[0].card || null : null,
+        at: this.data.draftAt || '', planned: this.data.planned,
+        items: events.length > 1 ? events.map((item) => ({ content: item.content, kind: kindFor(item.card), happened_on: item.date,
+          at: item.at || '', planned: item.planned, card: item.card || null })) : undefined };
+      const snapshot = this.draftSnapshot(); snapshot.text = text; snapshot.date = value.happened_on;
+      outbox.add(this.member, snapshot, payload, this.sourceOutboxId);
+      this.sourceOutboxId = '';
+      try { this.clearDraft(true); }
+      catch (err) { this.resetRecognition(); this.setData({ queueError: '内容已进入待同步箱，但输入草稿清理失败；重新打开时请先核对待同步箱' }); }
+      this.setData({ text: '', images: [], kind: 'daily', duplicateCandidates: [] }); this.refreshQueue();
+      wx.showToast({ title: '已存本机，等待同步', icon: 'none' });
+      this.syncOutbox(true);
+    } catch (err) { wx.showToast({ title: err.message || '未能存入本机，请保留输入', icon: 'none' }); }
+    finally { if (!this.disposed) this.setData({ busy: false }); }
   },
 
   async autoTag(id, content, pickedKind) {
@@ -849,7 +836,8 @@ Page({
           });
           const result = res && res.result;
           if (!result || !result.ok) throw new Error((result && result.error) || '没删掉');
-          this.reload();
+          this.undoDelete = { id, revision: result.revision, familyCode: this.member.family_code, memberId: this.member._id };
+          this.setData({ undoAvailable: true }); this.reload(false, true);
         } catch (err) {
           wx.showToast({ title: (err.message || '没删掉').slice(0, 20), icon: 'none' });
           this.init();
@@ -866,6 +854,19 @@ Page({
     const tag = e.currentTarget.dataset.tag;
     if (!tag) return;
     wx.navigateTo({ url: '/pages/search/search?q=' + encodeURIComponent(tag) });
+  },
+
+  async undoRemoval() {
+    if (this.data.busy || !this.undoDelete) return;
+    const value = this.undoDelete;
+    this.setData({ busy: true });
+    try {
+      const member = await app.ensureMember();
+      if (!member || member._id !== value.memberId || member.family_code !== value.familyCode) throw new Error('家庭身份已变化，请在原家庭回收站恢复');
+      await app.entryRequest({ action: 'restore', id: value.id, revision: value.revision });
+      this.undoDelete = null; this.setData({ undoAvailable: false }); this.reload(false, true);
+    } catch (err) { wx.showToast({ title: err.message || '恢复失败，请到回收站核对', icon: 'none' }); }
+    finally { if (!this.disposed) this.setData({ busy: false }); }
   },
 
   goSearch() {

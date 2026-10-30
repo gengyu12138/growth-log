@@ -114,8 +114,14 @@
 </view>
 </scroll-view>
 
-<view wx:if="{{(canEdit || savePending) && composerOpen}}" class="composer">
-  <view class="compose-head"><text>记下一个瞬间</text><button class="btn-text" disabled="{{busy || savePending || recording || transcribing || voiceStarting}}" bindtap="closeComposer">收起，保留草稿</button></view>
+<view wx:if="{{canEdit || localMode || savePending}}" class="composer input-dock">
+  <view wx:if="{{undoAvailable}}" class="queue-line"><text>记录已移入回收站</text><button class="btn-text" disabled="{{busy}}" bindtap="undoRemoval">撤销删除</button></view>
+  <view wx:if="{{lastSavedId}}" class="queue-line" bindtap="openLastSaved">已同步 {{lastSavedCount}} 条 · 查看原记录 ›</view>
+  <view wx:if="{{queueCount}}" class="queue-line" bindtap="goOutbox">{{syncing ? '正在同步' : '待同步与草稿'}} · {{queueCount}} 条 ›</view>
+  <text wx:if="{{offline || localMode}}" class="t-micro">离线时先存本机，联网核对身份后同步。</text>
+  <text wx:if="{{queueError}}" class="queue-error" bindtap="goOutbox">{{queueError}} · 查看待同步箱</text>
+  <view wx:if="{{text || images.length}}" class="draft-review">
+
   <text wx:if="{{savePending}}" class="t-micro">上次保存结果待确认，请重试保存后继续编辑</text>
   <view class="draft-info">
     <picker wx:if="{{analysisEvents.length < 2}}" mode="date" value="{{draftDate || selectedDate}}" disabled="{{busy || savePending || recording || transcribing || voiceStarting}}" bindchange="onDraftDate">记录日期：{{draftDate || selectedDate}}</picker>
@@ -134,7 +140,7 @@
     <text wx:if="{{recognitionWarning}}" class="recognition-warning">{{recognitionWarning}}</text>
   </view>
   <view wx:if="{{analysisEvents.length === 1 && analysisEvents[0].card && !savePending}}" class="card-preview">
-    <record-card entry="{{analysisEvents[0]}}" reading preview />
+    <record-card entry="{{analysisEvents[0]}}" reading preview compact />
     <button class="btn-text" data-index="0" bindtap="toggleCardEditor">{{editingCardIndex === 0 ? '收起字段调整' : '调整卡片字段与依据'}}</button>
     <smart-card wx:if="{{editingCardIndex === 0}}" card="{{analysisEvents[0].card}}" editable changeable-type disabled="{{busy}}" data-index="0" bind:typechange="onCardType" bind:fieldchange="onCardField" bind:unlink="onCardUnlink" />
     <button class="btn-text" data-index="0" disabled="{{busy}}" bindtap="onRemoveCard">仅保留原文</button>
@@ -143,7 +149,7 @@
   <scroll-view wx:if="{{analysisEvents.length > 1 && !savePending}}" scroll-y class="proposals">
     <view wx:for="{{analysisEvents}}" wx:key="index" class="proposal">
       <text>{{index + 1}}. {{item.content}}</text>
-      <record-card entry="{{item}}" reading preview />
+      <record-card entry="{{item}}" reading preview compact />
       <button wx:if="{{item.card}}" class="btn-text" data-index="{{index}}" bindtap="toggleCardEditor">{{editingCardIndex === index ? '收起字段调整' : '调整卡片字段与依据'}}</button>
       <smart-card wx:if="{{editingCardIndex === index}}" card="{{item.card}}" editable changeable-type disabled="{{busy}}" data-index="{{index}}" bind:typechange="onCardType" bind:fieldchange="onCardField" bind:unlink="onCardUnlink" />
       <button wx:if="{{item.card}}" class="btn-text" data-index="{{index}}" disabled="{{busy}}" bindtap="onRemoveCard">仅保留原文</button>
@@ -172,34 +178,30 @@
     </view>
   </view>
 
-  <view class="voice-row">
-    <button wx:if="{{!recording}}" class="btn-text" disabled="{{busy || savePending || transcribing || voiceStarting}}" bindtap="startVoice">{{transcribing ? '正在转文字…' : '语音记一条'}}</button>
-    <button wx:if="{{recording}}" class="btn-text" bindtap="stopVoice">说完了，转文字</button><button wx:if="{{recording}}" class="btn-text" bindtap="cancelVoice">取消录音</button>
-    <button wx:if="{{voiceRetry && !transcribing}}" class="btn-text" disabled="{{busy || savePending || recording || voiceStarting}}" bindtap="retryVoice">重试转文字</button>
-  </view><text wx:if="{{voiceStatus}}" class="voice-status">{{voiceStatus}}</text>
-  <text wx:if="{{text.length >= 450}}" class="char-count {{text.length > 500 ? 'recognition-warning' : ''}}">{{text.length}} / 500{{text.length > 500 ? ' · 已保留全部原文，请缩短后保存' : ' · 接近字数上限'}}</text>
-  <view class="composer-row">
-    <textarea
-      class="composer-input"
-      value="{{text}}"
-      disabled="{{busy || savePending || recording || transcribing || voiceStarting}}"
-      bindinput="onText"
-      bindfocus="onKbFocus"
-      bindblur="onKbBlur"
-      adjust-position="{{true}}"
-      bindkeyboardheightchange="onKbHeight"
-      cursor-spacing="24"
-      auto-height
-      maxlength="-1"
-      placeholder="用自己的话，记下这个瞬间…"
-      placeholder-class="ph"
-    />
-    <view class="pic-btn" bindtap="onPickImage" hover-class="pic-btn-hover">
-      <text class="pic-btn-text">照片</text>
-    </view>
-    <view class="send-btn {{busy || text.length > 500 ? 'off' : ''}}" bindtap="onSave" hover-class="send-btn-hover">{{savePending ? (saveRetrySafe ? '重试保存' : '核对保存') : (analysisEvents.length > 1 ? '确认拆分' : '记下')}}</view>
+  <view wx:if="{{duplicateCandidates.length}}" class="duplicate-review">
+    <text class="field-label">发现相似记录，请核对是否为同一次</text>
+    <view wx:for="{{duplicateCandidates}}" wx:key="_id"><text>{{item.happened_on}} {{item.at}}</text><text class="duplicate-text">{{item.content}}</text><button class="btn-text" data-id="{{item._id}}" bindtap="inspectDuplicate">查看已有记录</button></view>
+    <button class="btn btn-ghost" bindtap="keepSeparate">是另一次，保留为新记录</button>
   </view>
+  <view wx:if="{{pendingDuplicate}}" class="duplicate-review"><text class="field-label">待同步箱已有相同内容，先核对是否为同一次</text><view class="draft-info"><button class="btn-text" bindtap="goOutbox">查看待同步箱</button><button class="btn-text" bindtap="keepSeparate">是另一次，保留为新记录</button></view></view>
+  <view wx:if="{{clarificationQuestion}}" class="duplicate-review"><text class="field-label">{{clarificationQuestion}}</text><input class="field-input" value="{{clarificationAnswer}}" maxlength="150" disabled="{{busy || recognizing}}" bindinput="onClarification" placeholder="补充后会保留到原文中" /><button class="btn-text" disabled="{{busy || recognizing || !clarificationAnswer}}" bindtap="addClarification">补充并重新分析</button></view>
+  </view>
+  <view wx:if="{{inputMode === 'voice' && text}}" class="transcript">
+    <textarea class="composer-input" value="{{text}}" bindinput="onText" bindblur="onKbBlur" auto-height maxlength="-1" disabled="{{busy || recording || transcribing || voiceStarting}}" placeholder="转写内容可修改" />
+  </view>
+  <view class="composer-row">
+    <button class="mode-button" bindtap="toggleInputMode" disabled="{{busy || recording || transcribing || voiceStarting}}" aria-label="{{inputMode === 'voice' ? '切换文字输入' : '切换语音输入'}}">{{inputMode === 'voice' ? '键盘' : '语音'}}</button>
+    <button wx:if="{{inputMode === 'voice'}}" class="speak-button {{recording ? 'recording' : ''}}" bindtap="voiceTap" disabled="{{busy || transcribing || voiceStarting}}">{{recording ? '说完了 · ' + voiceSeconds + '秒' : voiceStarting ? '准备中…' : transcribing ? '正在转写…' : text ? '继续说话' : '点击说话'}}</button>
+    <textarea wx:else class="composer-input" value="{{text}}" disabled="{{busy}}" bindinput="onText" bindblur="onKbBlur" bindkeyboardheightchange="onKbHeight" adjust-position auto-height maxlength="-1" cursor-spacing="24" placeholder="记下这个瞬间…" />
+    <button wx:if="{{!recording}}" class="add-button" bindtap="inputActions" disabled="{{busy || transcribing || voiceStarting}}" aria-label="照片、识别和草稿">＋</button>
+    <button wx:if="{{recording}}" class="mode-button" bindtap="cancelVoice">取消</button>
+    <button wx:if="{{text || images.length}}" class="send-button" bindtap="onSave" disabled="{{busy || recording || transcribing || voiceStarting || text.length > 500}}">{{busy ? '处理中' : '保存'}}</button>
+  </view>
+  <text wx:if="{{voiceStatus}}" class="voice-status">{{voiceStatus}}</text>
+  <button wx:if="{{voicePermissionDenied}}" class="btn-text" bindtap="voiceSettings">前往麦克风设置</button>
+  <button wx:if="{{voiceRetry && !transcribing}}" class="btn-text" disabled="{{busy || recording || voiceStarting}}" bindtap="retryVoice">重试这段语音</button>
+  <text wx:if="{{text.length >= 450}}" class="char-count">{{text.length}} / 500 · 原文已保留</text>
 </view>
 
-<view wx:if="{{canEdit && !composerOpen}}" class="compose-launch"><button class="btn btn-primary" disabled="{{busy}}" bindtap="openComposer">{{composerOpen ? '继续记录' : text || images.length ? '继续未完成的草稿' : '＋ 记下一个瞬间'}}</button></view>
+
 </view>

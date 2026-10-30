@@ -1,5 +1,7 @@
 function createVoice(page, acceptText) {
   const recorder = wx.getRecorderManager();
+  let ticker = null;
+  const stopTicker = () => { if (ticker) clearInterval(ticker); ticker = null; };
   let disposed = false, cancelled = false, active = false, starting = false, path = '', version = 0, startVersion = 0;
   const update = (data) => { if (!disposed) page.setData(data); };
   const transcribe = async () => {
@@ -23,13 +25,13 @@ function createVoice(page, acceptText) {
   };
   const stopped = (result) => {
     if (!active) return;
-    active = false; update({ recording: false });
+    active = false; stopTicker(); update({ recording: false });
     if (disposed || cancelled) return;
     if (!result.tempFilePath || result.duration < 500) { update({ voiceStatus: '语音太短，请重新录音' }); return; }
     if (result.fileSize > 650000) { update({ voiceStatus: '录音过大，请分段录入' }); return; }
     path = result.tempFilePath; transcribe();
   };
-  const failed = () => { if (active) { active = false; update({ recording: false, voiceStatus: '录音未成功，请检查麦克风权限后重试' }); } };
+  const failed = () => { stopTicker(); if (active) { active = false; update({ recording: false, voiceStatus: '录音未成功，请检查麦克风权限后重试' }); } };
   recorder.onStop(stopped); recorder.onError(failed);
   return {
     async start() {
@@ -40,19 +42,21 @@ function createVoice(page, acceptText) {
         const caps = await getApp().getEntryCapabilities();
         if (disposed || attempt !== startVersion) return;
         if (caps.speechToText !== 1) throw new Error('语音服务尚未开通，仍可直接输入文字');
-        await new Promise((resolve, reject) => wx.authorize({ scope: 'scope.record', success: resolve, fail: reject }));
+        try { await new Promise((resolve, reject) => wx.authorize({ scope: 'scope.record', success: resolve, fail: reject })); }
+        catch (err) { update({ voicePermissionDenied: true }); throw new Error('麦克风权限未开启，可前往设置或切换键盘输入'); }
         if (disposed || attempt !== startVersion) return;
         cancelled = false; active = true; path = '';
-        update({ recording: true, voiceRetry: false, voiceStatus: '正在录音，点“说完了”转文字；最长60秒' });
+        update({ recording: true, voiceSeconds: 0, voicePermissionDenied: false, voiceRetry: false, voiceStatus: '正在录音，点“说完了”转文字；最长60秒' });
+        stopTicker(); ticker = setInterval(() => update({ voiceSeconds: Math.min(60, (page.data.voiceSeconds || 0) + 1) }), 1000);
         recorder.start({ duration: 60000, sampleRate: 16000, numberOfChannels: 1, encodeBitRate: 48000, format: 'mp3' });
-      } catch (err) { if (attempt === startVersion) { active = false; update({ recording: false, voiceStatus: err.message || '请在小程序设置中允许使用麦克风' }); } }
+      } catch (err) { if (attempt === startVersion) { stopTicker(); active = false; update({ recording: false, voiceStatus: err.message || '语音服务暂时不可用，可先用键盘输入并存本机' }); } }
       finally { if (attempt === startVersion) { starting = false; update({ voiceStarting: false }); } }
     },
     stop() { if (active) recorder.stop(); },
-    cancel() { startVersion += 1; starting = false; cancelled = true; if (active) recorder.stop(); update({ recording: false, voiceStarting: false, voiceStatus: '已取消录音' }); },
+    cancel() { stopTicker(); startVersion += 1; starting = false; cancelled = true; if (active) recorder.stop(); update({ recording: false, voiceStarting: false, voiceStatus: '已取消录音' }); },
     retry: transcribe,
     reset() { path = ''; update({ voiceStatus: '', voiceRetry: false }); },
-    dispose() { disposed = true; version += 1; cancelled = true; if (active) recorder.stop(); recorder.offStop(stopped); recorder.offError(failed); },
+    dispose() { stopTicker(); disposed = true; version += 1; cancelled = true; if (active) recorder.stop(); recorder.offStop(stopped); recorder.offError(failed); },
   };
 }
 module.exports = { createVoice };

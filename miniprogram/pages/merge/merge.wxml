@@ -1,0 +1,19 @@
+<backdrop /><navbar title="合并前核对" back />
+<view class="workspace"><text class="error">{{error}}</text><button wx:if="{{error && !pending}}" class="btn-text" bindtap="load">重新读取</button>
+  <view wx:for="{{originals}}" wx:key="_id" class="panel surface original"><text class="heading">原记录 {{index + 1}} · {{item.happened_on}}</text><text class="muted">{{item.at || '未指定事件时刻'}} · {{item.author}} · 版本 {{item.revision || 0}}</text><text class="body">{{item.content || '照片记录'}}</text><text wx:if="{{item.note}}" class="muted">备注：{{item.note}}</text><smart-card card="{{item.card}}" /><button class="btn-text" data-id="{{item._id}}" bindtap="open">核对原记录</button></view>
+  <view wx:if="{{originals.length === 2}}" class="panel surface">
+    <text class="heading">合并后的预览</text><text class="muted">保留第一条的标识及首次记录时间；第二条移入回收站，原正文和照片仍可核对。正文改变后，卡片需重新整理。</text>
+    <textarea class="field-input" value="{{content}}" maxlength="-1" disabled="{{busy || pending}}" data-field="content" bindinput="onInput" /><text class="muted">{{content.length}} / 500</text>
+    <view class="row"><picker mode="date" value="{{date}}" disabled="{{busy || pending}}" bindchange="onDate">{{date}}</picker><picker mode="time" value="{{at || '08:00'}}" disabled="{{busy || pending}}" bindchange="onTime">{{at || '使用首次记录时间'}}</picker><button class="btn-text" disabled="{{busy || pending}}" bindtap="clearTime">清除事件时刻</button></view>
+    <picker range="{{kinds}}" value="{{kindIndex}}" disabled="{{busy || pending}}" bindchange="onKind"><view class="field-input">分类：{{kinds[kindIndex]}} ▾</view></picker>
+    <view class="row"><text>待办计划</text><switch checked="{{planned}}" disabled="{{busy || pending}}" data-field="planned" bindchange="onSwitch" color="#096f60" /></view><view class="row"><text>珍藏</text><switch checked="{{favorite}}" disabled="{{busy || pending}}" data-field="favorite" bindchange="onSwitch" color="#096f60" /></view>
+    <text class="muted">备注 · {{note.length}} / 200</text><textarea class="field-input" value="{{note}}" maxlength="-1" disabled="{{busy || pending}}" data-field="note" bindinput="onInput" />
+    <text class="muted">保留照片 {{imageCount}} / 9；未选照片仍保留在原记录的回收站条目中</text><checkbox-group bindchange="onImages"><view class="thumbs"><label wx:for="{{photoChoices}}" wx:key="id" class="image-choice"><image src="{{item.id}}" mode="aspectFill" /><checkbox value="{{item.id}}" checked="{{item.checked}}" disabled="{{busy || pending}}" color="#096f60" /></label></view></checkbox-group>
+    <button wx:if="{{photoChoices.length}}" class="btn-text" disabled="{{busy || pending}}" bindtap="omitPhotos">本次只合并文字，不带照片</button>
+    <button class="btn-text" disabled="{{busy || pending || !content}}" bindtap="analyze">{{analyzing ? '正在整理…' : '按合并后的原文重新整理卡片'}}</button><text class="muted">{{cardStatus}}</text><smart-card card="{{card}}" />
+    <text wx:if="{{pending}}" class="error">保存结果待确认，已锁定原提案。重试仍使用同一提交，不会重复合并。</text>
+    <button wx:if="{{pending}}" class="btn-text" disabled="{{busy}}" bindtap="checkResult">核对云端合并结果</button><button wx:if="{{pending && canReset}}" class="btn-text" disabled="{{busy}}" bindtap="resetProposal">重新读取并调整</button>
+    <button class="btn btn-primary" disabled="{{busy || analyzing || loading || !canEdit}}" bindtap="save">{{busy ? '正在处理…' : pending ? '核对并重试原合并' : '检查完成，确认合并'}}</button>
+    <text wx:if="{{!supported}}" class="error">合并服务尚未部署，当前可检查预览。</text>
+  </view>
+</view>

@@ -74,6 +74,7 @@ Page({
   },
   openView(e) {
     const view = this.data.views[Number(e.currentTarget.dataset.index)];
+    if (view && view.intent === 'topic') { this.goTopics(); return; }
     if (view) this.generate(null, view);
   },
   async reloadViews() {
@@ -83,6 +84,7 @@ Page({
       const caps = await app.getEntryCapabilities();
       if (this.disposed) return;
       this.setData({ cloudViews: caps.cloudViews === 1 });
+      this.topicCloud = caps.topics === 1;
       if (caps.cloudViews !== 1) { this.setData({ viewStatus: '当前关注项仅保存在本机；云端同步需更新云函数' }); return; }
       const r = await app.entryRequest({ action: 'getViews' });
       if (this.disposed) return;
@@ -95,15 +97,24 @@ Page({
   },
   async storeViews(views) {
     if (this.data.cloudViews) {
+      if (!this.topicCloud && views.some((view) => view.intent === 'topic')) throw new Error('成长专题的云同步需先更新服务，已保留本机配置');
       if (!Number.isSafeInteger(this.viewsRevision)) throw new Error('请先重新读取云端关注项');
       const r = await app.entryRequest({ action: 'saveViews', views, revision: this.viewsRevision,
         memberId: this.member._id, familyCode: this.member.family_code });
       if (!Number.isSafeInteger(r.revision) || !Array.isArray(r.views)) throw new Error('云端保存结果异常，请重新读取核对');
       this.viewsRevision = r.revision; views = r.views;
       wx.setStorageSync(helper.storageKey(this.member) + ':revision', r.revision);
-    }
+      wx.removeStorageSync(helper.storageKey(this.member) + ':dirty');
+    } else wx.setStorageSync(helper.storageKey(this.member) + ':dirty', true);
     wx.setStorageSync(helper.storageKey(this.member), views);
     if (!this.disposed) this.setData({ views, viewStatus: this.data.cloudViews ? '已同步到云端，其他设备可读取' : '仅保存在本机，云端尚未启用同步' });
+  },
+  goTopics() { wx.navigateTo({ url: '/pages/topics/topics' }); },
+  saveStoryTopic() {
+    if (!this.data.plan || !this.member) return;
+    app.globalData.topicImport = { memberId: this.member._id, familyCode: this.member.family_code,
+      title: this.data.plan.title, keywords: this.data.plan.keywords || [], types: this.data.plan.types || [] };
+    this.goTopics();
   },
   async saveView() {
     if (this.data.busy || this.data.saving || this.data.viewsLoading || this.data.error || !this.data.plan || !this.member) return;

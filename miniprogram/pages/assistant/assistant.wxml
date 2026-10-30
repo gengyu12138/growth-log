@@ -1,5 +1,6 @@
 <backdrop /><navbar title="智能助手" />
 <view class="page page-root">
+  <button class="btn-text" bindtap="goTopics">查看成长专题 ›</button>
   <view class="surface card">
     <text class="t-h2">说说你想看什么、关注什么或纠正什么</text>
     <view class="task-grid"><button wx:for="{{tasks}}" wx:key="*this" class="task" disabled="{{busy || saving || pending}}" data-index="{{index}}" bindtap="chooseTask">{{item}}</button></view>
@@ -69,6 +70,7 @@
     </view>
   </block>
   <block wx:if="{{plan.intent === 'story' && !busy && !error}}">
+    <button class="btn-text" bindtap="saveStoryTopic">保存为持续更新的成长专题</button>
     <text class="intro">范围内匹配 {{storyTotal}} 条，模型参考 {{storyConsidered}} 条{{storyTotal > storyConsidered ? '均匀选取的记录，并非完整历史' : '记录'}}。章节标题由模型整理，事实以引用原文为准。</text>
     <text wx:if="{{!chapters.length}}" class="intro">暂无足够相关片段，可换个主题或补充日期范围。</text>
     <view wx:for="{{chapters}}" wx:for-item="chapter" wx:key="index" class="surface card">

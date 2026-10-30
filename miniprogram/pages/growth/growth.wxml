@@ -1,7 +1,8 @@
 <backdrop /><navbar title="成长回顾" />
 <view class="page page-root">
   <view class="tabs surface"><button class="tab {{tab === 'memories' ? 'active' : ''}}" data-tab="memories" bindtap="onTab">成长回忆</button><button class="tab {{tab === 'summary' ? 'active' : ''}}" data-tab="summary" bindtap="onTab">月度小结</button><button class="tab {{tab === 'statistics' ? 'active' : ''}}" data-tab="statistics" bindtap="onTab">数据统计</button></view>
-  <view class="stat-windows"><button class="btn-text" bindtap="goPhotos">照片回忆</button><button class="btn-text" bindtap="goFirsts">全部第一次</button><button class="btn-text" bindtap="goFavorites">珍藏时刻</button></view>
+  <view class="stat-windows"><button class="btn-text" bindtap="goPhotos">照片回忆</button><button class="btn-text" bindtap="goTopics">成长专题</button><button class="btn-text" bindtap="goBook">制作成长册</button></view>
+  <view class="stat-windows"><button class="btn-text" bindtap="goFirsts">全部第一次</button><button class="btn-text" bindtap="goFavorites">珍藏时刻</button></view>
   <picker wx:if="{{tab === 'summary'}}" mode="date" fields="month" value="{{month}}" bindchange="onMonth"><view class="field-input month">{{month}} · 选择月份</view></picker>
   <view wx:if="{{tab === 'statistics'}}" class="stat-range">
     <view class="stat-windows"><button class="btn-text" data-window="today" bindtap="onStatWindow">今天</button><button class="btn-text" data-window="week" bindtap="onStatWindow">近7天</button><button class="btn-text" data-window="month" bindtap="onStatWindow">本月</button></view>
@@ -41,7 +42,7 @@
     <view class="images"><image wx:for="{{summary.photos}}" wx:key="*this" src="{{item}}" mode="aspectFill" lazy-load data-src="{{item}}" bindtap="onPreview" /></view>
     <text wx:if="{{summary.photoCount > 12}}" class="t-micro">展示前 12 张照片，其余可在本月记录中查看。</text>
     <button class="btn-text" bindtap="goMonth">查看本月全部记录</button>
-    <block wx:if="{{summary.count}}"><button class="btn btn-ghost" bindtap="reviewMonth">让 AI 整理本月成长故事</button><text class="field-label">月记草稿 · 最多 500 字</text><textarea class="field-input note" value="{{note}}" maxlength="500" disabled="{{!canEdit}}" bindinput="onNote" /><text class="t-micro">{{noteStatus}}</text><button wx:if="{{canEdit}}" class="btn btn-primary" bindtap="toDraft">带到首页草稿</button><text class="t-micro">带入后仍需点击“记下”才保存。默认作为回顾原文，不重复抽取数值；修改正文后请再次检查卡片。</text></block>
+    <block wx:if="{{summary.count}}"><button class="btn btn-ghost" bindtap="reviewMonth">让 AI 整理本月成长故事</button><text class="field-label">月记草稿 · 最多 500 字</text><textarea class="field-input note" value="{{note}}" maxlength="500" disabled="{{!canEdit}}" bindinput="onNote" /><text class="t-micro">{{noteStatus}}</text><button wx:if="{{canEdit}}" class="btn btn-primary" bindtap="toDraft">带到首页草稿</button><text class="t-micro">带入后仍需点击“保存”；首页旧输入会保留到草稿箱。默认作为回顾原文，不重复抽取数值；修改正文后请再次检查卡片。</text></block>
   </view>
   <view wx:if="{{sourceTitle}}" class="source-overlay">
     <view class="surface source-panel">

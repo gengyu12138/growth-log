@@ -4,7 +4,7 @@ const { backupPhotos } = require('../../utils/backup');
 const config = require('../../utils/config');
 const { growthBook } = require('../../utils/book');
 const ACTIONS = { add: '新增了记录', update: '编辑了记录', remove: '将记录移入回收站',
-  restore: '恢复了记录', favorite: '更新了里程碑收藏', tag: '触发了自动整理' };
+  restore: '恢复了记录', favorite: '更新了里程碑收藏', tag: '触发了自动整理', merge: '合并了记录' };
 
 Page({
   data: { tab: 'favorites', rows: [], loading: false, busy: false, error: '', hasMore: false,
@@ -147,4 +147,5 @@ Page({
     wx.shareFileMessage({ filePath: this.data.exportPath, fileName: this.data.exportName,
       fail: (err) => { if (!String(err.errMsg).includes('cancel')) this.setData({ error: '发送失败，文件仍保留，可重试' }); } });
   },
+  goBook() { if (!this.data.busy) wx.navigateTo({ url: '/pages/book/book' }); },
 });

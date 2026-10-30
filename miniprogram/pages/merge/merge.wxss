@@ -1,0 +1,2 @@
+@import "../../styles/workspace.wxss";
+.image-choice{width:144rpx;display:flex;flex-direction:column;gap:8rpx}.image-choice image{margin:0}.original{border-left:5rpx solid #b2cec0;padding-left:18rpx}

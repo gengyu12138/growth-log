@@ -1,7 +1,7 @@
 <view wx:if="{{view}}" class="record layout-{{view.layout}} {{entry.planned ? 'planned' : ''}} {{compact ? 'compact' : ''}}">
   <view class="record-head">
     <text class="type">{{preview ? '整理预览 · ' : ''}}{{entry.planned ? '计划 · ' : ''}}{{view.type}}{{entry.favorite ? ' · 珍藏' : ''}}</text>
-    <text wx:if="{{!compact}}" class="time">{{view.time || '时间待核对'}}{{view.timeFallback ? preview ? ' · 默认' : ' · 记录时间' : ''}}</text>
+    <text wx:if="{{!compact || preview}}" class="time">{{view.time || '时间待核对'}}{{view.timeFallback ? preview ? ' · 默认' : ' · 记录时间' : ''}}</text>
     <button wx:if="{{canEdit && !reading}}" class="more" aria-label="记录操作" bindtap="menu">···</button>
   </view>
   <text wx:if="{{view.title && (!compact || expanded)}}" class="title" bindtap="open">{{view.title}}</text>
@@ -9,7 +9,7 @@
   <view wx:if="{{view.metrics.length}}" class="metrics">
     <view wx:for="{{compact && !expanded ? view.compactMetrics : view.metrics}}" wx:key="label" class="metric {{item.primary ? 'featured' : ''}}"><text class="label">{{item.label}}</text><view><text class="value">{{item.value}}</text><text class="unit">{{item.unit}}</text></view><text wx:if="{{item.manual}}" class="manual">手动填写</text></view>
   </view>
-  <text wx:if="{{view.text}}" class="body" selectable="{{reading}}" bindtap="open">{{reading || expanded ? view.text : view.excerpt}}</text>
+  <text wx:if="{{view.text}}" class="body" selectable="{{reading}}" bindtap="open">{{reading && !compact || expanded ? view.text : view.excerpt}}</text>
   <button wx:if="{{view.long && !reading && !compact}}" class="link" bindtap="expand">{{expanded ? '收起正文' : '展开全文'}}</button>
   <view wx:if="{{view.facts.length && (!compact || expanded)}}" class="facts"><view wx:for="{{view.facts}}" wx:key="label" class="fact"><text class="label">{{item.label}}</text><view><text>{{item.value}}{{item.unit}}</text><text wx:if="{{item.manual}}" class="manual">手动填写</text></view></view></view>
   <view wx:if="{{view.images.length}}" class="photos {{view.images.length === 1 ? 'single' : ''}}"><image wx:for="{{compact && !expanded ? view.previewImages : view.images}}" wx:key="*this" src="{{item}}" mode="aspectFill" lazy-load data-src="{{item}}" bindtap="preview" /></view>

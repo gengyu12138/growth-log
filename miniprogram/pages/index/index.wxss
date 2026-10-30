@@ -241,15 +241,7 @@
   border-top:1rpx solid #d7e4dc
 }
 
-.compose-head {
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:16rpx;
-  margin-bottom:16rpx;
-  font-size:29rpx;
-  font-weight:600
-}
+
 
 .draft-info {
   display:flex;
@@ -392,22 +384,11 @@
   margin-top:12rpx
 }
 
-.compose-launch {
-  padding:14rpx 28rpx;
-  background:#f1f7f4
-}
 
-.compose-launch .btn {
-  width:100%;
-  height:88rpx
-}
 
-.voice-row {
-  display:flex;
-  gap:20rpx;
-  align-items:center;
-  flex-wrap:wrap
-}
+
+
+
 
 .voice-status {
   font-size:26rpx;
@@ -433,10 +414,7 @@
   padding:8rpx 4rpx
 }
 
-.compose-launch button.btn {
-  width:100%;
-  max-width:none
-}
+
 
 .tl-item { display:flex; align-items:stretch; }
 .tl-time { width:82rpx; flex:none; padding:12rpx 12rpx 0 0; text-align:right; font-size:25rpx; line-height:1.5; color:var(--ink-2); font-variant-numeric:tabular-nums; }
@@ -451,3 +429,19 @@
 .tl-card { flex:1; min-width:0; padding-left:12rpx; padding-bottom:14rpx; }
 .initial-placeholder { padding:16rpx 0; }
 .initial-placeholder view { height:80rpx; margin-bottom:16rpx; border-radius:12rpx; background:#e7efea; }
+
+.input-dock { padding:14rpx 24rpx; }
+.input-dock .composer-row { margin-top:0; align-items:center; gap:10rpx; }
+.input-dock button { margin:0; }
+.input-dock button.mode-button { width:78rpx; min-width:0; padding:0; min-height:84rpx; background:transparent; color:#176d5d; font-size:24rpx; line-height:1.5; display:flex; align-items:center; justify-content:center; }
+.input-dock button.speak-button { flex:1; width:auto; min-width:0; height:88rpx; padding:0 16rpx; border:1rpx solid #b7d1c1; border-radius:18rpx; background:#fff; color:#233d34; font-size:29rpx; display:flex; align-items:center; justify-content:center; }
+.input-dock button.speak-button.recording { background:#d9eee2; border-color:#096f60; color:#075c4f; }
+.input-dock button.add-button { width:72rpx; min-width:0; padding:0; height:84rpx; background:transparent; font-size:42rpx; line-height:84rpx; color:#176d5d; }
+.input-dock button.send-button { width:96rpx; min-width:0; padding:0 8rpx; height:84rpx; line-height:84rpx; background:#096f60; color:#fff; font-size:27rpx; border-radius:16rpx; }
+.input-dock .composer-input { width:100%; min-width:0; min-height:84rpx; max-height:200rpx; padding:14rpx 18rpx; }
+.transcript { margin:10rpx 0; }
+.draft-review { max-height:38vh; overflow-y:auto; margin-bottom:12rpx; }
+.queue-line { font-size:25rpx; color:#176d5d; padding:8rpx 0 16rpx; }
+.queue-error { display:block; font-size:24rpx; color:#8b481f; padding-bottom:12rpx; }
+.duplicate-review { padding:18rpx; border:1rpx solid #d9be8f; border-radius:16rpx; background:#fffaf1; font-size:25rpx; }
+.duplicate-text { display:block; white-space:pre-wrap; margin:10rpx 0; }

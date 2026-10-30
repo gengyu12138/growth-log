@@ -125,3 +125,4 @@
 .filter-row { display: flex; justify-content: space-between; align-items: center; padding: 12rpx 0; gap: 20rpx; }
 
 .search-row button.clear{flex:0 0 88rpx;width:88rpx;min-width:0;max-width:88rpx;margin:0 0 0 16rpx}
+.smart-query{display:flex;align-items:center;justify-content:space-between;gap:20rpx;flex-wrap:wrap}.smart-query .btn-text{padding-left:0}.smart-query .t-micro{font-size:24rpx}

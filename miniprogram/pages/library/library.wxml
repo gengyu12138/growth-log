@@ -6,6 +6,7 @@
   <text wx:elif="{{tab === 'trash'}}" class="intro">可写成员可以恢复记录。历史记录的图片若此前已被清理，恢复后可能无法显示。</text>
   <text wx:elif="{{tab === 'history'}}" class="intro">从操作记录功能启用后开始记录，不补记历史操作。</text>
   <view wx:if="{{tab === 'export'}}" class="surface card">
+    <button class="btn-text" disabled="{{busy}}" bindtap="goBook">自选记录、照片与寄语，制作成长册 ›</button>
     <text class="field-label">文件用途</text><picker range="{{exportFormats}}" value="{{formatIndex}}" disabled="{{busy}}" bindchange="onFormat"><view class="field-input month">{{exportFormats[formatIndex]}} ▾</view></picker>
     <view class="export-option"><text>导出全部记录</text><switch checked="{{exportAll}}" disabled="{{busy}}" bindchange="onExportAll" color="#0e9187" /></view>
     <picker wx:if="{{!exportAll}}" mode="date" fields="month" value="{{month}}" disabled="{{busy}}" bindchange="onMonth"><view class="field-input month">选择月份：{{month}}</view></picker>

@@ -9,7 +9,13 @@
     "pages/growth/growth",
     "pages/assistant/assistant",
     "pages/ai-settings/ai-settings",
-    "pages/photos/photos"
+    "pages/photos/photos",
+    "pages/outbox/outbox",
+    "pages/import/import",
+    "pages/topics/topics",
+    "pages/quality/quality",
+    "pages/merge/merge",
+    "pages/book/book"
   ],
   "window": {
     "backgroundColor": "#eef5f5",

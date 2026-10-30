@@ -4,8 +4,9 @@ function storageKey(member) { return 'assistantViews:' + member._id + ':' + memb
 function readViews(wx, member) {
   const saved = wx.getStorageSync(storageKey(member));
   if (!saved) return [];
-  if (!Array.isArray(saved) || saved.length > 20 || saved.some((item) => !item || !['board', 'tracker', 'compare'].includes(item.intent)
-    || typeof item.title !== 'string' || !item.window || !Array.isArray(item.types) || !Array.isArray(item.keywords) || !Array.isArray(item.fields))) {
+  if (!Array.isArray(saved) || saved.length > 20 || saved.some((item) => !item || !['board', 'tracker', 'compare', 'topic'].includes(item.intent)
+    || typeof item.title !== 'string' || !item.window || !Array.isArray(item.types) || !Array.isArray(item.keywords) || !Array.isArray(item.fields)
+    || item.intent === 'topic' && (!/^[a-z0-9-]{16,80}$/.test(item.id || '') || !Array.isArray(item.entryIds) || item.entryIds.some((id) => typeof id !== 'string')))) {
     throw new Error('本机保存的视图格式异常，请检查后重试');
   }
   return saved;
@@ -18,22 +19,23 @@ function saveView(wx, member, plan) {
   const index = views.findIndex((view) => JSON.stringify(view) === JSON.stringify(item));
   if (index >= 0) return views;
   if (views.length >= 20) throw new Error('最多保存20个视图，请先移除不需要的视图');
-  views.push(item); wx.setStorageSync(storageKey(member), views); return views;
+  views.push(item); wx.setStorageSync(storageKey(member), views); wx.setStorageSync(storageKey(member) + ':dirty', true); return views;
 }
 function acceptCloudViews(wxApi, member, result) {
   if (!result || !Array.isArray(result.views) || !Number.isSafeInteger(result.revision) || result.revision < 0
     || !result.member || result.member._id !== member._id || result.member.family_code !== member.family_code) throw new Error('云端关注项身份或格式异常');
   const key = storageKey(member), local = readViews(wxApi, member);
-  const synced = Number.isSafeInteger(wxApi.getStorageSync(key + ':revision'));
-  const signature = (v) => JSON.stringify([v.intent, v.title, v.window, v.types, v.keywords, v.fields]);
+  const synced = Number.isSafeInteger(wxApi.getStorageSync(key + ':revision')), dirty = wxApi.getStorageSync(key + ':dirty') === true;
+  const signature = (v) => JSON.stringify([v.intent, v.id, v.title, v.window, v.types, v.keywords, v.fields, v.entryIds]);
   const views = result.views.slice();
-  if (!synced) {
-    for (const view of local) if (!views.some((v) => signature(v) === signature(view))) views.push(view);
+  for (const view of local) if ((!synced || dirty || !result.topics && view.intent === 'topic') && !views.some((v) => signature(v) === signature(view))) {
+    if (view.intent === 'topic' && views.some((v) => v.intent === 'topic' && v.id === view.id)) throw new Error('同一专题在本机与云端存在不同版本，请先保留本机草稿后核对');
+    views.push(view);
   }
   if (views.length > 20) throw new Error('本机与云端合计超过20个关注项，请先整理后同步');
   const migration = views.length !== result.views.length;
   wxApi.setStorageSync(key, views);
-  if (!migration) wxApi.setStorageSync(key + ':revision', result.revision);
+  if (!migration) { wxApi.setStorageSync(key + ':revision', result.revision); wxApi.removeStorageSync(key + ':dirty'); }
   return { views, migration };
 }
 function match(row, plan) {

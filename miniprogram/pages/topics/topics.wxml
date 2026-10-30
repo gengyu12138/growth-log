@@ -1,0 +1,24 @@
+<backdrop /><navbar title="成长专题" back />
+<view class="workspace">
+  <view class="row"><text class="muted">把一件事的前后变化串起来</text><button class="btn-text" disabled="{{busy || loading || editing}}" bindtap="load">刷新</button><button class="btn-text" disabled="{{busy || loading}}" bindtap="create">新建专题</button></view>
+  <text class="error">{{error}}</text><text class="muted">{{status}}</text>
+  <button wx:if="{{migration}}" class="btn-text" disabled="{{busy || loading || editing}}" bindtap="sync">同步本机专题</button>
+  <button wx:if="{{error && !busy}}" class="btn-text" bindtap="load">重新读取</button>
+  <view class="topic-tabs"><button wx:for="{{topics}}" wx:key="id" class="topic-tab {{selectedId === item.id ? 'active' : ''}}" data-id="{{item.id}}" bindtap="select">{{item.title}}</button></view>
+  <view wx:if="{{editing}}" class="surface panel">
+    <text class="heading">{{editId ? '编辑专题' : '新建专题'}}</text>
+    <text class="muted">名称</text><input class="field-input" value="{{title}}" maxlength="30" data-field="title" bindinput="onInput" placeholder="例如：从扶站到独立走路" />
+    <text class="muted">关键词，用逗号分开，最多6个；未来匹配的新记录也会纳入</text><input class="field-input" value="{{words}}" maxlength="185" data-field="words" bindinput="onInput" placeholder="扶站，走路，迈步" />
+    <text wx:if="{{types.length}}" class="muted">沿用卡片类型：{{typesLabel}}</text>
+    <button class="btn-text" bindtap="togglePicker">{{picking ? '收起原记录' : '手动选取原记录'}} · 已选 {{selectedCount}} 条</button>
+    <scroll-view wx:if="{{picking}}" scroll-y class="record-picker"><checkbox-group bindchange="onRecords"><label wx:for="{{choices}}" wx:key="_id" class="check-row"><checkbox value="{{item._id}}" checked="{{item.checked}}" color="#096f60" /><view class="body"><text class="muted">{{item.happened_on}}</text>{{item.content || '照片记录'}}</view></label></checkbox-group></scroll-view>
+    <text wx:if="{{missingCount}}" class="error">{{missingCount}} 条原选中记录已不在当前有效记录中，保存会移除这些失效引用。</text>
+    <view class="actions"><button class="btn btn-ghost" disabled="{{busy}}" bindtap="cancel">取消</button><button class="btn btn-primary" disabled="{{busy || loading}}" bindtap="save">{{busy ? '正在保存…' : '保存专题'}}</button></view>
+  </view>
+  <block wx:if="{{!editing && selected}}">
+    <view class="panel surface"><text class="heading">{{selected.title}}</text><text class="muted">{{ruleLabel}} · {{entries.length}} 条已发生记录。日期从早到晚；条目可打开核对。</text><view class="row"><button class="btn-text" bindtap="edit">调整纳入规则</button><button class="btn-text" disabled="{{busy}}" bindtap="remove">移除专题</button></view></view>
+    <view wx:for="{{entries}}" wx:key="_id" class="process"><view class="process-time"><text>{{item.yearLabel}}</text><text class="process-day">{{item.dayLabel}}</text><text class="muted">{{item.timeLabel}}</text></view><view class="process-content surface panel"><text wx:if="{{item.linked}}" class="badge">来自相关记录</text><record-card entry="{{item}}" reading compact /><button class="btn-text" data-id="{{item._id}}" bindtap="open">查看原记录 ›</button></view></view>
+    <text wx:if="{{!entries.length && !loading}}" class="muted">还没有符合规则的已发生记录。可以调整关键词或手动选取。</text>
+  </block>
+  <view wx:if="{{!topics.length && !editing && !loading}}" class="empty">新建一个专题，把“开始尝试、逐渐熟练、第一次完成”留在同一条成长脉络里。</view>
+</view>

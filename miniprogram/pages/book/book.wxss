@@ -1,0 +1,2 @@
+@import "../../styles/workspace.wxss";
+.record-select{max-height:680rpx}.book-cover{width:100%;height:340rpx;display:block;border-radius:16rpx;margin:20rpx 0}.photo-option{width:144rpx;display:flex;flex-direction:column;gap:8rpx}.photo-option .btn-text{font-size:23rpx;padding:6rpx 0;min-height:60rpx}.book-preview{padding:36rpx;background:#fffdf7;border:1rpx solid #dbdfce;border-radius:20rpx}.book-preview .heading{text-align:center}.workspace textarea.parent-message{height:270rpx}.workspace textarea.chapter-note{height:150rpx}

@@ -1,0 +1,3 @@
+@import "../../styles/workspace.wxss";
+.topic-tabs{display:flex;gap:12rpx;flex-wrap:wrap;margin:16rpx 0 28rpx}.topic-tab{padding:14rpx 22rpx;border-radius:28rpx;background:#fff;color:#52695e;font-size:27rpx;max-width:100%;white-space:normal}.topic-tab.active{background:#096f60;color:#fff}.process{display:flex;gap:18rpx;margin:0 0 24rpx}.process-time{width:130rpx;flex-shrink:0;padding-top:15rpx;font-size:24rpx;color:#52695e;border-right:2rpx solid #c6dcd0}.process-content{flex:1;min-width:0}.process-content .body{margin:12rpx 0;font-size:28rpx}.process-content .btn-text{padding:0;text-align:left}.record-picker{max-height:600rpx}
+.process-day{display:block;white-space:nowrap;font-size:27rpx;margin-top:6rpx}

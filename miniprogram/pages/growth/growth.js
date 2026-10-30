@@ -158,22 +158,20 @@ Page({
 
   toDraft() {
     if (this.data.loading || !this.data.canEdit || !this.data.summary || !this.data.summary.count || !this.data.note.trim()) return;
-    const key = 'entryDraft:' + this.member._id + ':' + this.member.family_code;
-    const old = wx.getStorageSync(key), pending = wx.getStorageSync('pendingEntry:' + this.member._id);
-    if (pending || old && (old.text || old.images && old.images.length)) {
-      wx.showToast({ title: '首页已有草稿，请先处理后再带入月记', icon: 'none' }); return;
-    }
     const today = dates.fmtDate(new Date());
     const end = dates.fmtDate(new Date(Number(this.data.month.slice(0, 4)), Number(this.data.month.slice(5)), 0));
     const date = end > today ? today : end;
     try {
-      wx.setStorageSync(key, { text: this.data.note, kind: 'daily', images: [], date, baseDate: date, dateManual: true,
-        proposals: [{ content: this.data.note, date, at: '', planned: false, card: null }], newTypes: [], knownTypes: [] });
-      wx.reLaunch({ url: '/pages/index/index?date=' + date });
+      app.globalData.entryImport = { memberId: this.member._id, familyCode: this.member.family_code,
+        form: { text: this.data.note, kind: 'daily', images: [], date, baseDate: date, dateManual: true,
+          proposals: [{ content: this.data.note, date, at: '', planned: false, card: null }], newTypes: [], knownTypes: [] } };
+      wx.switchTab({ url: '/pages/index/index' });
     } catch (err) { this.setData({ error: '草稿保存失败，请重试' }); }
   },
   onOpen(e) { wx.navigateTo({ url: '/pages/edit/edit?readonly=1&id=' + encodeURIComponent(e.currentTarget.dataset.id) }); },
   goPhotos() { wx.navigateTo({ url: '/pages/photos/photos' }); },
+  goTopics() { wx.navigateTo({ url: '/pages/topics/topics' }); },
+  goBook() { wx.navigateTo({ url: '/pages/book/book' }); },
   goFirsts() { wx.navigateTo({ url: '/pages/search/search?kind=first' }); },
   reviewMonth() {
     app.openAssistant('整理' + this.data.month + '的成长故事，回顾重要变化并引用原文');

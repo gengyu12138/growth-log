@@ -1,0 +1,9 @@
+<backdrop /><navbar title="重复记录核对" back />
+<view class="workspace"><text class="muted">按同一天、相近原文或相同照片找出疑似重复。相同的喂养、睡眠可能本来就发生多次，请逐条核对。</text>
+  <view class="row"><text class="muted">{{status}}</text><button class="btn-text" disabled="{{loading}}" bindtap="load">重新检查</button></view><text class="error">{{error}}</text>
+  <view wx:for="{{pairs}}" wx:key="key" class="panel surface"><text class="heading">{{item.first.happened_on}} · 疑似重复</text>
+    <text class="muted">记录一 · {{item.first.at || '未指定事件时刻'}} · {{item.first.author}}</text><text class="body">{{item.first.content || '照片记录'}}</text><button class="btn-text" data-id="{{item.first._id}}" bindtap="open">查看原记录一</button>
+    <view class="rule"><text class="muted">记录二 · {{item.second.at || '未指定事件时刻'}} · {{item.second.author}}</text><text class="body">{{item.second.content || '照片记录'}}</text><button class="btn-text" data-id="{{item.second._id}}" bindtap="open">查看原记录二</button></view>
+    <view class="row"><button class="btn-text" data-key="{{item.key}}" bindtap="keep">确认是两次，保留两条</button><button wx:if="{{canEdit}}" class="btn-text" data-id="{{item.first._id}}" data-other="{{item.second._id}}" bindtap="merge">查看合并预览</button></view>
+  </view><text wx:if="{{!pairs.length && !loading && !error}}" class="muted">当前没有待核对的疑似重复。此结果只基于原文相似度，不代表完整的数据质量检查。</text><button wx:if="{{ignored}}" class="btn-text" bindtap="reset">重新显示本机已确认的 {{ignored}} 组</button>
+</view>

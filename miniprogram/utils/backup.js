@@ -5,9 +5,10 @@ function fileCall(fs, method, options) {
   return new Promise((resolve, reject) => fs[method](Object.assign({}, options, { success: resolve, fail: reject })));
 }
 
-async function backupPhotos(wxApi, filePath, payload, familyCode, envId, cancelled, progress) {
+async function backupPhotos(wxApi, filePath, payload, familyCode, envId, cancelled, progress, bookOptions) {
   const fs = wxApi.getFileSystemManager();
-  const images = [...new Set(payload.entries.reduce((list, entry) => list.concat(entry.images || []), []))];
+  const images = [...new Set(payload.entries.reduce((list, entry) => list.concat(entry.images || []), []))]
+    .filter((id) => !bookOptions || !Array.isArray(bookOptions.selectedImageIds) || bookOptions.selectedImageIds.includes(id));
   const files = [];
   let temporaryPath = '';
   const check = () => { if (cancelled()) throw new Error('已取消备份'); };
@@ -39,9 +40,9 @@ async function backupPhotos(wxApi, filePath, payload, familyCode, envId, cancell
       await fileCall(fs, 'unlink', { filePath: temporaryPath }); temporaryPath = '';
     }
     const manifest = Object.assign({}, payload, { format: 'growth-log-photo-backup-v1', files,
-      imageNotice: 'photos 目录保留云端照片文件，不再次压缩。历史上传前已压缩的照片无法还原为相机原图。' });
+      imageNotice: (bookOptions ? '本包只含成长册中手动选取的照片，记录中的其他照片仍仅为云引用。' : '') + 'photos 目录保留云端照片文件，不再次压缩。历史上传前已压缩的照片无法还原为相机原图。' });
     await zip.add('records.json', utf8(JSON.stringify(manifest, null, 2)));
-    await zip.add('growth-book.html', utf8(growthBook(payload.entries, '家庭成长回忆', files)));
+    await zip.add('growth-book.html', utf8(growthBook(payload.entries, bookOptions && bookOptions.title || '家庭成长回忆', files, bookOptions)));
     const bytes = await zip.finish(); check();
     return { count: files.length, bytes };
   } catch (err) {

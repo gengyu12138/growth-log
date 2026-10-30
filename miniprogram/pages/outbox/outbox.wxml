@@ -1,0 +1,14 @@
+<backdrop /><navbar title="待同步与草稿" back />
+<view class="workspace">
+  <text class="muted">只有确认保存的内容会联网同步。草稿留在这台设备；卸载小程序或清理本机数据会丢失尚未同步的内容。</text>
+  <view class="row"><button class="btn-text" disabled="{{busy || !rows.length}}" bindtap="sync">{{busy ? '正在同步…' : '重试同步'}}</button><button class="btn-text" disabled="{{busy}}" bindtap="load">刷新状态</button></view>
+  <text class="error">{{error}}</text>
+  <view wx:for="{{rows}}" wx:key="id" class="panel surface">
+    <view class="row"><text class="badge">{{item.statusLabel}}</text><text class="muted">{{item.form.date}} · {{item.count}} 条</text></view>
+    <text class="body" selectable>{{item.form.text || '照片记录'}}</text><text class="muted">{{item.form.images.length}} 张照片 · 本机保留</text>
+    <text wx:if="{{item.error}}" class="error">{{item.error}}</text>
+    <view class="row"><button wx:if="{{item.editable}}" class="btn-text" data-id="{{item.id}}" disabled="{{busy}}" bindtap="edit">继续编辑</button><button wx:if="{{item.editable}}" class="btn-text" data-id="{{item.id}}" disabled="{{busy}}" bindtap="discard">删除本机草稿</button><button wx:if="{{item.attempts}}" class="btn-text" data-id="{{item.id}}" disabled="{{busy}}" bindtap="check">核对云端结果</button><button wx:if="{{item.legacyUnsafe}}" class="btn-text" data-id="{{item.id}}" disabled="{{busy}}" bindtap="resolveLegacy">已人工核对，处理旧提交</button></view>
+  </view>
+  <view wx:if="{{!rows.length && !error}}" class="empty">这里已经清空。新记录会先安全落在本机，再同步到家庭。</view>
+  <view wx:if="{{saved.length}}" class="panel surface"><text class="heading">已同步</text><button wx:for="{{saved}}" wx:key="*this" class="btn-text" data-id="{{item}}" bindtap="open">查看原记录 {{index + 1}}</button></view>
+</view>

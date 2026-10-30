@@ -6,6 +6,10 @@ const assistant = require('./assistant');
 const prompts = require('./prompts');
 const speech = require('./speech');
 const viewStore = require('./views');
+const retrieval = require('./retrieval');
+const { merge } = require('./merge');
+const ocr = require('./ocr');
+const tencent = require('./tencent');
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
@@ -73,6 +77,7 @@ const ANALYZE_PROMPT = [
   '拆分时 content 必须是原文连续片段，顺序不变且覆盖全部原文（可省略连接处空白与标点），不可改写、增添、丢弃正文。',
   '续记里的历史指代不是新增事件：“接着早上喝150ml奶那条记录，现在又喝了30ml奶”只返回1个事件，content保留整段，at="now"，本次奶量仅30ml。历史150ml只用于关联，不重复拆分、统计或相加。warning最多200字。',
   '模糊表达如“前几天”不猜日期，date=null 并写 warning。相对表达缺少可确定的参照时也要提示。',
+  '只有原文出现尚未解决的日期、时刻、数量冲突，影响事实或统计时，额外返回question（最多150字的一句追问），其余情况省略或为空；普通描述缺字段不要追问。用户手选优先，用户后续明确补充按最后纠正为准。',
   '不执行删除、修改历史记录、邀请或权限管理，不推断病情，不添加用户没有说的事实。',
 ].join('\n');
 
@@ -114,7 +119,8 @@ function validateAnalysis(parsed, content, context, referenceTime) {
     return event;
   });
   if (remaining.replace(/[\s，。；！？、,.!?;]+/g, '')) throw new Error('missing content');
-  return { events, warning: parsed.warning.trim() };
+  if (parsed.question !== undefined && (typeof parsed.question !== 'string' || parsed.question.length > 150)) throw new Error('invalid clarification');
+  return { events, warning: parsed.warning.trim(), question: (parsed.question || '').trim() };
 }
 
 // 兼容旧客户端：未携带已确认时间时，只识别原文明确的钟点。
@@ -457,13 +463,59 @@ exports.main = async (event) => {
 
   const action = event.action;
   // 能力查询及记录读取不得创建集合；初始化仅属于写入流程。
-  if (['add', 'addBatch', 'tag', 'remove', 'update', 'restore', 'favorite'].includes(action)) await ensureCollections();
+  if (['add', 'addBatch', 'tag', 'remove', 'update', 'restore', 'favorite', 'merge'].includes(action)) await ensureCollections();
 
   const member = await getMember(OPENID);
   if (!member) return { ok: false, error: '还没有加入家庭' };
 
   if (action === 'capabilities') {
-    return { ok: true, idempotentAdd: true, softDeleteOnly: true, recordTools: 1, smartInput: 1, dynamicCards: 1, assistant: 1, promptSettings: 1, cardPresentation: 1, editRebuild: 1, entryPhotos: 1, cloudViews: 1, speechToText: speech.configured() ? 1 : 0 };
+    return { ok: true, idempotentAdd: true, softDeleteOnly: true, recordTools: 1, smartInput: 1, dynamicCards: 1,
+      assistant: 1, promptSettings: 1, scopedAdd: 1, naturalSearch: 1, mergeEntries: 1, topics: 1,
+      cardPresentation: 1, editRebuild: 1, entryPhotos: 1, cloudViews: 1,
+      imageText: ocr.configured() ? 1 : 0, speechToText: speech.configured() ? 1 : 0 };
+  }
+
+  if (action === 'interpretSearch') {
+    let stage = 'INPUT';
+    try {
+      if (typeof event.query !== 'string' || !event.query.trim() || event.query.length > 200) throw new Error('查询请控制在200字以内');
+      if (!process.env.DEEPSEEK_KEY) throw new Error('智能检索尚未配置，请直接搜索关键词');
+      stage = 'MODEL';
+      const raw = await callDeepSeek(process.env.DEEPSEEK_KEY, JSON.stringify({ query: event.query.trim(), today: nowCN(),
+        types: BUILTIN_TYPES }), retrieval.PROMPT, 500);
+      stage = 'VALIDATION';
+      return { ok: true, plan: retrieval.normalize(JSON.parse(raw), validDate) };
+    } catch (err) { return { ok: false, error: stage === 'INPUT' ? err.message : stage === 'VALIDATION'
+      ? '智能检索条件未通过校验，请换种说法或直接搜关键词' : '智能检索暂时不可用，请直接搜索关键词' }; }
+  }
+
+  if (action === 'submissionStatus') {
+    if (event.expectedFamilyCode !== member.family_code || event.expectedMemberId !== member._id
+      || !/^[a-z0-9-]{16,80}$/.test(event.requestId || '') || typeof event.batch !== 'boolean'
+      || !Number.isSafeInteger(event.count) || event.count < 1 || event.count > 5 || !event.batch && event.count !== 1) return { ok: false, error: '请重新核对提交标识与家庭' };
+    const records = [];
+    for (let i = 0; i < event.count; i += 1) {
+      const id = crypto.createHash('sha256').update(JSON.stringify([member.family_code, OPENID, event.batch ? event.requestId + ':' + i : event.requestId])).digest('hex').slice(0, 32);
+      const { data: row } = await db.collection(ENTRIES).doc(id).get();
+      if (row && row.family_code === member.family_code) records.push({ id, revision: revision(row), deleted: !!row.deleted_at });
+    }
+    return { ok: true, records };
+  }
+
+  if (action === 'merge') {
+    try {
+      try { await db.createCollection(TYPES); } catch (err) { if (!String(err.errCode).includes('502002') && !/exist|已存在/i.test(err.message || err.errMsg || '')) throw err; }
+      return await merge({ db, validDate, validTime, validateCard, revision, prepareCards, logEvent, orderedCard }, member, event);
+    } catch (err) { return { ok: false, error: err.message || '合并未完成，请保留原提交重试' }; }
+  }
+
+  if (action === 'mergeStatus') {
+    if (event.memberId !== member._id || event.familyCode !== member.family_code || !/^[a-zA-Z0-9_-]{1,80}$/.test(event.id || '')
+      || !Number.isSafeInteger(event.revision) || event.revision < 0 || !/^[a-z0-9-]{16,80}$/.test(event.requestId || '')) return { ok: false, error: '请核对合并提案与家庭身份' };
+    try {
+      const { data: receipt } = await db.collection(EVENTS).doc(event.id + '-' + (event.revision + 1)).get();
+      return { ok: true, applied: !!receipt && receipt.family_code === member.family_code && receipt.actor_id === member._id && receipt.merge_request === event.requestId };
+    } catch (err) { if (err.errCode === -502005) return { ok: true, applied: false }; throw err; }
   }
 
   if (action === 'getViews' || action === 'saveViews') {
@@ -476,21 +528,20 @@ exports.main = async (event) => {
       if (!['owner', 'editor'].includes(member.role)) throw new Error('只读成员不能录入语音');
       if (!speech.configured()) throw new Error('语音转文字尚未开通，请管理员配置语音服务');
       speech.audioData(event.audio);
-      // 全小程序共享保守上限；失败也计次，避免不确定结果的重试突破调用预算。
-      const month = nowCN().slice(0, 7);
-      try { await db.createCollection('entry_speech_usage'); }
-      catch (err) { if (!String(err.errCode).includes('502002') && !/exist|已存在/i.test(err.message || err.errMsg || '')) throw err; }
-      await db.runTransaction(async (transaction) => {
-        const usageRef = transaction.collection('entry_speech_usage').doc(month);
-        const { data: usage } = await usageRef.get();
-        if (usage && (!Number.isSafeInteger(usage.count) || usage.count < 0)) throw new Error('语音额度状态异常，请联系管理员');
-        const count = usage ? usage.count : 0;
-        if (count >= 1000) throw new Error('本月小程序语音额度已用完，请使用文字记录');
-        if (usage) await usageRef.update({ data: { count: count + 1 } });
-        else await usageRef.set({ data: { count: 1 } });
-      });
+      await tencent.consume(db, 'entry_speech_usage', nowCN().slice(0, 7), 1000, '语音');
       return Object.assign({ ok: true }, await speech.transcribe(event.audio));
     } catch (err) { return { ok: false, error: err.message || '语音转文字失败，请重试' }; }
+  }
+
+  if (action === 'recognizeImage') {
+    try {
+      if (!['owner', 'editor'].includes(member.role)) throw new Error('只读成员不能导入照片文字');
+      if (!ocr.configured()) throw new Error('照片文字识别尚未开通，请管理员配置识别服务');
+      if (!['basic', 'accurate'].includes(event.mode)) throw new Error('识别模式无效');
+      ocr.imageData(event.image);
+      await tencent.consume(db, 'entry_ocr_usage', nowCN().slice(0, 7), 300, '照片识别');
+      return Object.assign({ ok: true }, await ocr.recognize(event.image, event.mode));
+    } catch (err) { return { ok: false, error: err.message || '照片识别失败，请重试' }; }
   }
 
   if (['getPromptSettings', 'getMaintenanceRules', 'savePromptSettings'].includes(action)) {
@@ -585,7 +636,7 @@ exports.main = async (event) => {
         types = await readTypes(member.family_code);
         const recent = await db.collection(ENTRIES).where({ family_code: member.family_code, deleted_at: null })
           .orderBy('created_at', 'desc').orderBy('_id', 'desc').limit(12).get();
-        context = recent.data.filter((row) => row._id !== event.excludeId).map((row) => ({ id: row._id, revision: revision(row), date: row.happened_on,
+        context = recent.data.filter((row) => row._id !== event.excludeId && !(Array.isArray(event.excludeIds) && event.excludeIds.slice(0, 5).includes(row._id))).map((row) => ({ id: row._id, revision: revision(row), date: row.happened_on,
           at: row.at || '', planned: row.planned === true, content: String(row.content || '').slice(0, 200),
           type: row.card && row.card.type || '' }));
         input.recentEntries = context;
@@ -659,6 +710,9 @@ exports.main = async (event) => {
   if (['update', 'remove', 'restore', 'favorite'].includes(action)) return mutateEntry(member, event);
 
   if (action === 'add' || action === 'addBatch') {
+    if (event.expectedFamilyCode !== undefined && (event.expectedFamilyCode !== member.family_code || event.expectedMemberId !== member._id)) return { ok: false, error: '家庭身份已变化，请重新核对待同步记录' };
+    if (event.kindConfirmed !== undefined && typeof event.kindConfirmed !== 'boolean') return { ok: false, error: '分类确认状态无效' };
+
     const batch = action === 'addBatch';
     const items = batch ? event.items : [event];
     if (!Array.isArray(items) || !items.length || items.length > 5) return { ok: false, error: '一次最多拆分5条记录' };
@@ -688,6 +742,7 @@ exports.main = async (event) => {
       const hashFields = [content, happenedOn, images];
       if (smart) hashFields.push(item.at, item.planned, item.kind);
       if (event.cards === 1) hashFields.push(card);
+      if (event.kindConfirmed !== undefined) hashFields.push(event.kindConfirmed);
       docs.push({ family_code: member.family_code, happened_on: happenedOn, content,
         kind: KINDS.includes(item.kind) ? item.kind : 'daily', images,
         tags: [], place: '', note: '', temp: null, meds: [],
@@ -698,6 +753,7 @@ exports.main = async (event) => {
         submission_hash: crypto.createHash('sha256').update(JSON.stringify(hashFields)).digest('hex'),
       });
     }
+    if (event.kindConfirmed !== undefined) docs.forEach((doc) => { doc.kind_confirmed = event.kindConfirmed; });
     if (event.cards === 1) {
       try { await db.createCollection(TYPES); } catch (err) { /* 已存在时由事务继续核对读写权限。 */ }
     }
@@ -790,9 +846,9 @@ exports.main = async (event) => {
     if (meds.length) patch.meds = meds;
     patch.at = at;
 
-    // 用户特意选了「第一次 / 健康」就以他为准；停在默认「日常」时才采纳模型的判断
+    // 手选分类优先；显式确认日常时也不再被自动标签覆盖。
     const pickedKind = KINDS.indexOf(event.pickedKind) >= 0 ? event.pickedKind : 'daily';
-    if (pickedKind === 'daily' && aiKind !== 'daily') patch.kind = aiKind;
+    if (!original.kind_confirmed && pickedKind === 'daily' && aiKind !== 'daily') patch.kind = aiKind;
 
     return db.runTransaction(async (transaction) => {
       const ref = transaction.collection(ENTRIES).doc(id);

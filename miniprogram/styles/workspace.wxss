@@ -1,0 +1,94 @@
+.workspace {
+  position:relative;
+  z-index:1;
+  padding:24rpx 28rpx calc(60rpx + env(safe-area-inset-bottom));
+  color:#233d34}
+.workspace .panel {
+  padding:26rpx;
+  margin-bottom:24rpx}
+.workspace .heading {
+  display:block;
+  font-size:34rpx;
+  font-weight:600;
+  line-height:1.5}
+.workspace .muted {
+  display:block;
+  color:#52695e;
+  font-size:25rpx;
+  line-height:1.7;
+  margin:12rpx 0;
+  white-space:pre-wrap}
+.workspace .row {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16rpx;
+  flex-wrap:wrap}
+.workspace .body {
+  display:block;
+  font-size:29rpx;
+  line-height:1.75;
+  white-space:pre-wrap;
+  word-break:break-all;
+  margin:18rpx 0}
+.workspace .field-input {
+  width:100%;
+  box-sizing:border-box;
+  margin:12rpx 0;
+  min-height:80rpx;
+  padding:18rpx;
+  font-size:28rpx}
+.workspace textarea.field-input {
+  height:200rpx;
+  line-height:1.7}
+.workspace .error {
+  display:block;
+  color:#a13e35;
+  font-size:26rpx;
+  line-height:1.7;
+  white-space:pre-wrap;
+  margin:16rpx 0}
+.workspace .thumbs {
+  display:flex;
+  gap:12rpx;
+  flex-wrap:wrap;
+  margin:16rpx 0}
+.workspace .thumbs image {
+  width:144rpx;
+  height:144rpx;
+  border-radius:12rpx;
+  background:#e4ede7}
+.workspace .rule {
+  border-top:1rpx solid #dce7df;
+  margin-top:24rpx;
+  padding-top:24rpx}
+.workspace .badge {
+  padding:4rpx 14rpx;
+  border-radius:20rpx;
+  background:#e5f1ea;
+  font-size:24rpx;
+  color:#096f60}
+.workspace .check-row {
+  display:flex;
+  align-items:flex-start;
+  gap:14rpx;
+  padding:20rpx 0;
+  border-bottom:1rpx solid #e3eae4}
+.workspace .check-row .body {
+  flex:1;
+  margin:0}
+.workspace .actions {
+  display:flex;
+  gap:16rpx;
+  flex-wrap:wrap;
+  margin-top:20rpx}
+.workspace .actions .btn {
+  flex:1;
+  min-width:200rpx;
+  margin:0}
+.workspace button[disabled] {
+  opacity:.5}
+.workspace .empty {
+  padding:64rpx 8rpx;
+  line-height:1.8;
+  color:#52695e}

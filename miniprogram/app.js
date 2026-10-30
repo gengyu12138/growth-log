@@ -23,6 +23,18 @@ App({
     this.ensureMember().catch(() => {});
   },
 
+  getLocalMember() {
+    const member = wx.getStorageSync('member');
+    return member && typeof member._id === 'string' && typeof member.family_code === 'string'
+      && ['owner', 'editor', 'viewer'].includes(member.role) ? member : null;
+  },
+
+  onShow() {
+    this.ensureMember().then((member) => {
+      if (member && ['owner', 'editor'].includes(member.role)) return require('./utils/outbox').flush(this, member);
+    }).catch(() => {});
+  },
+
   selectTab(page, active) {
     const bar = typeof page.getTabBar === 'function' && page.getTabBar();
     if (bar) bar.setData({ active });
